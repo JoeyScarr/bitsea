@@ -5,34 +5,53 @@ int main() {
 	std::string numbertest = "i30eA";
 	std::string numbertest2 = "i00e";
 	std::string listtest= "l3:hogi30el2:bi3:bioi1eee";
-	std::string ltest = "l3:hog2:go5:abcdei10ee";
+	std::string ltest = "l3:hog2:go5:abcdee";
+	std::string ltest2 = "l3:hog2:go5:abcdei10ee";
 	
-	std::shared_ptr<std::string> test1 (std::make_shared<std::string>(stringtest));
-	std::shared_ptr<std::string> test2 (std::make_shared<std::string>(numbertest));
-	std::shared_ptr<std::string> test3 (std::make_shared<std::string>(listtest));
-	std::shared_ptr<std::string> test4 (std::make_shared<std::string>(ltest));
+	
+    std::string dic1= "d3:cow3:moo4:spam4:eggse"; // represents the dictionary { "cow" => "moo", "spam" => "eggs" }
+    std::string dic2="d4:spaml1:a1:bee"; // represents the dictionary { "spam" => [ "a", "b" ] }
+    std::string dic3="d9:publisher3:bob17:publisher-webpage15:www.example.com18:publisher.location4:homee"; // represents { "publisher" => "bob", "publisher-webpage" => "www.example.com", "publisher.location" => "home" }
+    std::string dic4="de"; // represents an empty dictionary {} 
+	
+	// String test	
+	//BDecoder t1(stringtest, 0);
+	//t1.decode();
+	//std::cout << boost::any_cast<std::string>(t1.get()) << std::endl;
+	
+	// Integer test
+	//BDecoder t2(numbertest,0);
+	//std::cout << t2.decode() << std::endl;
+	//std::cout << boost::any_cast<int>(t2.get()) << std::endl;
 
-	
-	BDecoder t1(test1, 0);
-	t1.decode();
-	std::cout << *shared_string(t1.output->object) << std::endl;
-	
-	//BDecoder t2(test2, 0);
-	//t2.decode();
-	//std::cout << *shared_int(t2.output->object) << std::endl;
+	//BDecoder t3(numbertest2,0);
+	//std::cout << t3.decode() << std::endl;
 
-	//BDecoder t3(test3, 0);
-	//t3.decode();
-	//Bcode_vec_ptr blah = (shared_Bcode_vec (t3.output->object));
-	//Bcode tt1 = (*blah)[2];
-	//std::cout << "Type: " << tt1.type << std::endl;
-	//Bcode_vec_ptr blah2 = (shared_Bcode_vec (tt1.object));
-	//std::cout << blah2->size() << std::endl;
-	
-	//BDecoder t4(test4,0);
+	// List test
+	//BDecoder t4(listtest,0);
 	//t4.decode();
-	//Bcode_vec_ptr blah = (shared_Bcode_vec(t4.output->object));
-	//std::cout << blah->size() << std::endl;
-	//Bcode bing = (*blah)[3];
-	//std::cout << *shared_int(bing.object) << std::endl;
+	//std::vector<boost::any> list = boost::any_cast<std::vector<boost::any>>(t4.get());
+	//std::cout << list.size() << std::endl;
+	//std::cout << (list[0].type() == typeid(std::string)) << std::endl;
+	
+	// Dictionary test
+	//BDecoder t5(dic1,0);
+	//std::cout << t5.decode() << std::endl;
+	//std::unordered_map<std::string,boost::any> dict = boost::any_cast<std::unordered_map<std::string,boost::any>>(t5.get());
+	////std::cout << dict.size() << std::endl;
+	//std::unordered_map<std::string,boost::any>::const_iterator got = dict.find ("cow");
+	//std::cout << boost::any_cast<std::string>(got->second) << std::endl;
+	
+	//BDecoder t6(dic2,0);
+	//std::cout << t6.decode() << std::endl;
+	//std::unordered_map<std::string,boost::any> dict = boost::any_cast<std::unordered_map<std::string,boost::any>>(t6.get());
+	////std::cout << dict.size() << std::endl;
+	//std::unordered_map<std::string,boost::any>::const_iterator got = dict.find ("spam");
+	//std::vector<boost::any> dictlist = boost::any_cast<std::vector<boost::any>>(got->second);
+	//std::cout << boost::any_cast<std::string>(dictlist[1]) << std::endl;
+	
+	//BDecoder t7(dic4,0);
+	//std::cout << t7.decode() << std::endl;
+	//std::unordered_map<std::string,boost::any> dict = boost::any_cast<std::unordered_map<std::string,boost::any>>(t7.get());
+	//std::cout << dict.size() << std::endl;
 }

@@ -1,131 +1,73 @@
 // Bencoding.cpp
 #include "Bencoding.hpp"
 
-std::vector<std::string> &BDecoder::split(const std::string &s, const char delim, std::vector<std::string> &elems) {
-    std::stringstream ss(s);
-    std::string item;
-    
-    while (std::getline(ss, item, delim))
-        elems.push_back(item);
-
-    return elems;
-}
-
-std::vector<std::string> BDecoder::split(const std::string &s, const char delim) {
-    std::vector<std::string> elems;
-    split(s, delim, elems);
-    return elems;
-}
-
 bool BDecoder::isEmpty() {
-	if(inputLength == 0) {
-		return true;
-	}
-	return false;
-}
-
-bool BDecoder::decode(Bcode_ptr localOutput) {
-	
-	char command = (*input)[position];
-	bool (BDecoder::*decoder)(Bcode_ptr localOutput); 
-	
-	if(isEmpty())
-		return false;
-		
-	if( isdigit(command) )
-		command = 's';
-	else if(!isalpha(command))
-		return false;
-
-	switch(command) {
-		case 's':
-			decoder = &BDecoder::decodeString;
-			break;
-		case 'i':
-			decoder = &BDecoder::decodeInteger;
-			break;
-		case 'd':
-			decoder = &BDecoder::decodeDictionary;
-			break;
-		case 'l':
-			decoder = &BDecoder::decodeList;
-			break;
-		default:
-			return false;
-			break;
-	}
-
-	bool success = (this->*decoder)(localOutput);
-	if(!success)
-		return false;
-	else
-		return true;
+	return encodedString.length() == 0;
 }
 
 bool BDecoder::decode() {
-	
-	char command = (*input)[position];
-	bool (BDecoder::*decoder)(Bcode_ptr localOutput); 
-	
-	if(isEmpty())
+	return decode(decodedObject);
+}
+
+bool BDecoder::decode(boost::any &localOutput) {
+	char command = encodedString[position];
+
+	if(isEmpty()) {
 		return false;
-		
-	if( isdigit(command) )
+	}
+	else if( isdigit(command) ) {
 		command = 's';
-	else if(!isalpha(command))
+	}
+	else if( !isalpha(command) )
 		return false;
 
+	bool success;
 	switch(command) {
 		case 's':
-			decoder = &BDecoder::decodeString;
+			success = decodeString(localOutput);
 			break;
 		case 'i':
-			decoder = &BDecoder::decodeInteger;
-			break;
-		case 'd':
-			decoder = &BDecoder::decodeDictionary;
+			success = decodeInteger(localOutput);
 			break;
 		case 'l':
-			decoder = &BDecoder::decodeList;
+			success = decodeList(localOutput);
+			break;
+		case 'd':
+			success = decodeDictionary(localOutput);
 			break;
 		default:
-			return false;
+			success = false;
 			break;
 	}
 	
-	bool success = (this->*decoder)(output);
-	if(!success)
-		return false;
-	else
-		return true;
+	return success;
 }
 
-bool BDecoder::decodeString(Bcode_ptr localOutput) {
-	int terminalCharacterPosition = (*input).find_first_of(":", position);
-
+bool BDecoder::decodeString(boost::any & localOutput) {
+	int terminalCharacterPosition = encodedString.find_first_of(":", position);
 	const char *cLength;
 	int stringLength;
+	
 	try {
-		cLength = (input->substr(position, terminalCharacterPosition-position)).c_str();
+		cLength = (encodedString.substr(position, terminalCharacterPosition-position)).c_str();
 		stringLength = std::stoi(cLength);
 	}
 	catch(int e) {
 		return false;
 	}
 	
-	localOutput->type = BCODE_STRING;
-	localOutput->object = make_string(input->substr(terminalCharacterPosition+1, stringLength));
+	localOutput = encodedString.substr(terminalCharacterPosition+1, stringLength);
 	position = terminalCharacterPosition+1+stringLength;
 	return true;
 }
 
-bool BDecoder::decodeInteger(Bcode_ptr localOutput) {
+bool BDecoder::decodeInteger(boost::any & localOutput) {
 	position++;
-	int terminalCharacterPosition = input->find_first_of("e", position);
+	int terminalCharacterPosition = encodedString.find_first_of("e", position);
 	
 	int number, numStringLength;
 	try {
-		const char *stringNumber = (input->substr(position, terminalCharacterPosition-position)).c_str();
+		const char *stringNumber = (encodedString.substr(position, terminalCharacterPosition-position)).c_str();
 		number = std::stoi(stringNumber);
 		numStringLength = strlen(stringNumber);
 	}
@@ -136,33 +78,48 @@ bool BDecoder::decodeInteger(Bcode_ptr localOutput) {
 	if(numStringLength > 1 && number == 0)
 		return false;
 		
-	localOutput->type = BCODE_INTEGER;
-	localOutput->object = make_int(number);
+	localOutput = number;
 	position = terminalCharacterPosition+1;
 	
 	return true;
 }
 
-bool BDecoder::decodeList(Bcode_ptr localOutput) {
+bool BDecoder::decodeList(boost::any & localOutput) {
 	position++;
-	localOutput->type = BCODE_LIST;
-	localOutput->object = make_Bcode_vec();
-	while((*input)[position] != 'e') {
-		Bcode_ptr currBcode(make_Bcode());
-		int success = decode(currBcode);
+	std::vector<boost::any> list;
+	while(encodedString[position] != 'e') {
+		boost::any currentBcode;
+		int success = decode(currentBcode);
 		if(!success)
 			return false;
-			
-		if( currBcode->type == BCODE_LIST )
-			std::cout << "List size: " << shared_Bcode_vec(currBcode->object)->size() << std::endl;
-			
-		(shared_Bcode_vec(localOutput->object))->push_back(*currBcode);
+		list.push_back(currentBcode);
 	}
+	localOutput = list;
 	position++;
 	return true;
 }
 
-bool BDecoder::decodeDictionary(Bcode_ptr localOutput) {
+bool BDecoder::decodeDictionary(boost::any & localOutput) {
+	position++;
+	std::unordered_map<std::string, boost::any> dict;
+	
+	while(encodedString[position] != 'e') {
+		boost::any key;
+		boost::any value;
 
+		bool status1 = decodeString(key);
+		bool status2 = decode(value);
+		
+		if(!status1 || !status2)
+			return false;
+		
+		dict.insert(std::pair<std::string,boost::any>(boost::any_cast<std::string>(key),value));
+	}
+	localOutput = dict;
+	position++;
 	return true;
+}
+
+boost::any BDecoder::get() {
+	return decodedObject;
 }
