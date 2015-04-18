@@ -63,11 +63,13 @@ void Tracker::constructRequest() {
 	if(compact)
 		setParameter(std::string("compact"), std::to_string(compact));
 		
-	if(sendEvent)
-		setParameter(std::string("event"), event);
-	
 	if(trackerid.compare("") != 0)
 		setParameter(std::string("trackerid"), trackerid);
+		
+	if(sendEvent) {
+		setParameter(std::string("event"), event);
+		sendEvent = false;
+	}
 }
 
 void Tracker::setPeerID() {
@@ -104,13 +106,55 @@ void Tracker::setIP() {
 	}
 }
 
-	//void setPort(unsigned int port);
-	//void setUploaded(unsigned int uploaded);
-	//void setDownloaded(unsigned int downloaded);
-	//void setLeft(unsigned int left);
-	//void setCompact(unsigned int compact);
-	//void setNoPeerID(unsigned int noPeerID);
-	//void setEvent(std::string event);
-	//void setNumWant(unsigned int numwant);
-	//void setKey(std::string key);
-	//void setTrackerID(std::string ID);
+void Tracker::setPort(unsigned int port) {
+	this->port = port;
+}
+
+void Tracker::setUploaded(unsigned int uploaded) {
+		this->uploaded = uploaded;
+}
+
+void Tracker::setDownloaded(unsigned int downloaded) {
+		this->downloaded = downloaded;
+}
+
+void Tracker::setLeft(unsigned int left) {
+	this->left = left;
+}
+
+void Tracker::setCompact(unsigned int compact) {
+	this->compact = compact;
+}
+
+void Tracker::setNoPeerID(unsigned int noPeerID) {
+	this->no_peer_id = noPeerID;
+}
+
+void Tracker::setEvent(std::string event) {
+	if(event.compare("started") == 0) {
+		this->event = event;
+	}
+	else if(event.compare("stopped") == 0) {
+		this->event = event;
+	}
+	else if(event.compare("completed") == 0) {
+		this->event = event;
+	}
+	else {
+		return;
+	}
+	
+	sendEvent = true;
+}
+
+void Tracker::setNumWant(unsigned int numwant) {
+	this->numwant = numwant;
+}
+
+void Tracker::setKey(std::string key) {
+	this->key = key;
+}
+
+void Tracker::setTrackerID(std::string ID) {
+	this->trackerid = ID;
+}
