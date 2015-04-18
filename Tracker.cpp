@@ -5,18 +5,18 @@ Tracker::Tracker(std::string &url, std::string &infoHash) {
 	this->url = url;
 	info_hash = infoHash;
 	setPeerID();
-	port=0;
+	port=DEFAULT_PORT;
+	compact=DEFAULT_COMPACT;
+	no_peer_id=DEFAULT_NO_PEER_ID;
+	event="started";
+	sendEvent=true;
+	ip="";
+	key="";
+	trackerid="";
 	uploaded=0;
 	downloaded=0;
 	left=0;
-	compact=0;
-	no_peer_id=0;
-	event="";
-	sendEvent=false;
-	ip="";
 	numwant=0;
-	key="";
-	trackerid="";
 }
 
 Tracker::~Tracker() {
@@ -131,13 +131,7 @@ void Tracker::setNoPeerID(unsigned int noPeerID) {
 }
 
 void Tracker::setEvent(std::string event) {
-	if(event.compare("started") == 0) {
-		this->event = event;
-	}
-	else if(event.compare("stopped") == 0) {
-		this->event = event;
-	}
-	else if(event.compare("completed") == 0) {
+	if(event.compare("started") == 0 || event.compare("stopped") == 0 || event.compare("completed") == 0) {
 		this->event = event;
 	}
 	else {

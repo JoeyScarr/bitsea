@@ -15,6 +15,10 @@
 
 class Tracker {
 private:
+	static const int DEFAULT_PORT = 6881;
+	static const int DEFAULT_COMPACT = 1;
+	static const int DEFAULT_NO_PEER_ID = 0;
+	
 	curlpp::Cleanup myCleanup;
 	curlpp::Easy myRequest;
 	std::string getRequest;
