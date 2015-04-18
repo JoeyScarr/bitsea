@@ -55,20 +55,21 @@ int main() {
 	//std::unordered_map<std::string,boost::any> dict = boost::any_cast<std::unordered_map<std::string,boost::any>>(t7.get());
 	//std::cout << dict.size() << std::endl;
 	
-	std::string singleFile("test.torrent");
-	TorrentFileParser single(singleFile);
-	std::cout << "getPieces: " << single.info.getPieces() << std::endl;
-	std::cout << "getPieceLength: " << single.info.getPieceLength() << std::endl;
-	std::cout << "getName: " << single.info.getName() << std::endl;
-	std::cout << "getPrivate: " << single.info.getPrivate() << std::endl;
-	std::cout << "getLength: " << single.info.getLength() << std::endl;
-	std::cout << "getMD5: " << single.info.getMD5() << std::endl;
-	std::cout << "getNumberOfFiles: " << single.info.getNumberOfFiles() << std::endl;
-	std::cout << "getRawInfoDict: " << single.info.string << std::endl;
+	//std::string singleFile("test.torrent");
+	//TorrentFileParser single(singleFile);
+	//std::cout << "getPieces: " << single.info.getPieces() << std::endl;
+	//std::cout << "getPieceLength: " << single.info.getPieceLength() << std::endl;
+	//std::cout << "getName: " << single.info.getName() << std::endl;
+	//std::cout << "getPrivate: " << single.info.getPrivate() << std::endl;
+	//std::cout << "getLength: " << single.info.getLength() << std::endl;
+	//std::cout << "getMD5: " << single.info.getMD5() << std::endl;
+	//std::cout << "getNumberOfFiles: " << single.info.getNumberOfFiles() << std::endl;
+	//std::cout << "getRawInfoDict: " << single.info.string << std::endl;
 	//std::cout << "Info: getHash: " << single.info.getHash() << " of length " << single.info.getHash().length() << std::endl;
-	std::string testURL("test");
-	Tracker trackHandler(testURL);
-	std::cout << "URL encoded hash: " <<  trackHandler.urlEncode(single.info.getHash()) << std::endl;
+	//std::string testURL("test");
+	//std::string infoHash = single.info.getHash();
+	//Tracker trackHandler(testURL, infoHash);
+	//std::cout << "URL encoded hash: " <<  trackHandler.urlEncode(single.info.getHash()) << std::endl;
 
 	//std::string multipleFile("multi.torrent");
 	//TorrentFileParser multi(multipleFile);
