@@ -6,6 +6,8 @@
 #include <curlpp/Easy.hpp>
 #include <curlpp/Options.hpp>
 #include <curl/curl.h>
+#include <random>
+#include <chrono>
 
 class Tracker {
 private:
@@ -23,7 +25,7 @@ private:
 	unsigned int left;
 	unsigned int compact;
 	int no_peer_id;
-	bool setEvent;
+	bool sendEvent;
 	std::string event;
 	std::string ip;
 	unsigned int numwant;

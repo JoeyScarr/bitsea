@@ -12,7 +12,7 @@ Tracker::Tracker(std::string &url, std::string &infoHash) {
 	compact=0;
 	no_peer_id=0;
 	event="";
-	setEvent=false;
+	sendEvent=false;
 	ip="";
 	numwant=0;
 	key="";
@@ -63,7 +63,7 @@ void Tracker::constructRequest() {
 	if(compact)
 		setParameter(std::string("compact"), std::to_string(compact));
 		
-	if(setEvent)
+	if(sendEvent)
 		setParameter(std::string("event"), event);
 	
 	if(trackerid.compare("") != 0)
@@ -72,8 +72,14 @@ void Tracker::constructRequest() {
 
 void Tracker::setPeerID() {
 	peer_id = "-SE";
-	peer_id += VESRION + "-";
-	
+	peer_id += VERSION;
+	peer_id += "-";
+	unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+	std::default_random_engine generator (seed);
+	std::uniform_int_distribution<int> distribution(0,9);
+	auto dice = std::bind ( distribution, generator );
+	for(int i=0; i < 12; i++)
+		peer_id += std::to_string(dice());
 }
 	
 	//void setIP();
