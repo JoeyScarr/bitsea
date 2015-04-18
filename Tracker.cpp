@@ -82,7 +82,28 @@ void Tracker::setPeerID() {
 		peer_id += std::to_string(dice());
 }
 	
-	//void setIP();
+void Tracker::setIP() {
+	try	{
+		curlpp::Cleanup myCleanup;
+		curlpp::Easy myRequest;
+		myRequest.setOpt<curlpp::options::Url>("http://myexternalip.com/raw");
+		std::ostringstream os;
+		curlpp::options::WriteStream ws(&os);
+		myRequest.setOpt(ws);
+		myRequest.perform();
+		ip = os.str();
+		ip.erase(std::remove(ip.begin(), ip.end(), '\n'), ip.end());
+		ip.erase(std::remove(ip.begin(), ip.end(), '\r'), ip.end());
+		ip.erase(std::remove(ip.begin(), ip.end(), ' '), ip.end());
+	}
+	catch(curlpp::RuntimeError & e)	{
+		std::cout << e.what() << std::endl;
+	}
+	catch(curlpp::LogicError & e) {
+		std::cout << e.what() << std::endl;
+	}
+}
+
 	//void setPort(unsigned int port);
 	//void setUploaded(unsigned int uploaded);
 	//void setDownloaded(unsigned int downloaded);

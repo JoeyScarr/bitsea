@@ -8,6 +8,10 @@
 #include <curl/curl.h>
 #include <random>
 #include <chrono>
+#include <algorithm>
+#include <iostream>
+#include <sstream>
+#include <string>
 
 class Tracker {
 private:
