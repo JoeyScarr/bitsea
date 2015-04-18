@@ -15,17 +15,17 @@
 #include <boost/any.hpp>
 
 class BDecoder {
+private:
 	std::string encodedString;
 	int position;
 	boost::any decodedObject;
+	std::pair<int,int> infoDictPosition;
 
 	bool decodeInteger(boost::any & localOutput);
 	bool decodeString(boost::any & localOutput);
 	bool decodeList(boost::any & localOutput);
 	bool decodeDictionary(boost::any & localOutput);
 	
-
-
 public:
 	BDecoder( const std::string &input, int position) {
 		this->encodedString = input;
@@ -35,6 +35,7 @@ public:
 	bool decode();
 	bool isEmpty();
 	boost::any get();
+	std::string getRawInfoDict();
 	
 	template<typename T>
 	static T get(const boost::any &inputDict, const char input[]) {

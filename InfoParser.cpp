@@ -9,6 +9,7 @@ void InfoParser::initialise(std::unordered_map<std::string, boost::any> inputDic
 	setName();
 	setLength();
 	setMD5();
+	setHash();
 }
 
 void InfoParser::setPieceLength() {
@@ -142,4 +143,15 @@ std::string InfoParser::filePath(std::unordered_map<std::string, boost::any> fil
 	return path;
 }
 
+void InfoParser::setHash() {
+	unsigned char hashString[SHA_DIGEST_LENGTH];
+	const unsigned char *infoString = reinterpret_cast<const unsigned char*>(string.c_str());
+	unsigned long length = string.length();
+	SHA1( infoString , length , hashString);
+	hash = std::string(reinterpret_cast<const char *>(hashString));
+}
+
+std::string InfoParser::getHash() {
+	return hash;
+}
 

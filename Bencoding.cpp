@@ -106,9 +106,16 @@ bool BDecoder::decodeDictionary(boost::any & localOutput) {
 	while(encodedString[position] != 'e') {
 		boost::any key;
 		boost::any value;
+		int startPos, endPos;
 
 		bool status1 = decodeString(key);
+		startPos = position;
 		bool status2 = decode(value);
+		endPos = position;
+		
+		if(boost::any_cast<std::string>(key).compare("info") == 0 ) {
+			infoDictPosition = std::make_pair(startPos, endPos);
+		}
 		
 		if(!status1 || !status2)
 			return false;
@@ -122,4 +129,11 @@ bool BDecoder::decodeDictionary(boost::any & localOutput) {
 
 boost::any BDecoder::get() {
 	return decodedObject;
+}
+
+std::string BDecoder::getRawInfoDict() {
+	int start = infoDictPosition.first;
+	int end = infoDictPosition.second;
+
+	return (encodedString.substr(start, end-start));
 }

@@ -2,6 +2,8 @@
 #define INFOPARSER_HPP
 
 #include "Bencoding.hpp"
+#include <openssl/sha.h>
+
 
 class InfoParser {
 private:
@@ -13,6 +15,7 @@ private:
 	int length;
 	std::string MD5;
 	int numberOfFiles;
+	std::string hash;
 	
 	void setPieces();
 	void setPieceLength();
@@ -21,10 +24,11 @@ private:
 	void setLength();
 	void setMD5();
 	void setFiles();
+	void setHash();
 
 public:
-	InfoParser() {}
-	
+	std::string string;
+
 	std::vector<boost::any> files;
 	std::string getPieces();
 	int getPieceLength();
@@ -34,10 +38,10 @@ public:
 	std::string getMD5();
 	int getNumberOfFiles();
 	void initialise(std::unordered_map<std::string, boost::any> inputDict);
+	std::string getHash();
 	static int fileLength(std::unordered_map<std::string, boost::any> file);
 	static std::string fileMD5(std::unordered_map<std::string, boost::any> file);
 	static std::string filePath(std::unordered_map<std::string, boost::any> file);
-
 };
 
 #endif

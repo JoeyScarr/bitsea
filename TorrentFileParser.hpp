@@ -33,7 +33,6 @@ private:
 public:
 	TorrentFileParser(std::string torrentFileName);
 	InfoParser info;
-
 };
 
 #endif
