@@ -2,6 +2,7 @@
 #define TRACKER_HPP
 
 #include "BitSea.hpp"
+#include "Bencoding.hpp"
 #include <curlpp/cURLpp.hpp>
 #include <curlpp/Easy.hpp>
 #include <curlpp/Options.hpp>
@@ -12,6 +13,7 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <boost/any.hpp>
 
 class Tracker {
 private:
@@ -19,11 +21,7 @@ private:
 	static const int DEFAULT_COMPACT = 1;
 	static const int DEFAULT_NO_PEER_ID = 0;
 	
-	curlpp::Cleanup myCleanup;
-	curlpp::Easy myRequest;
-	std::string getRequest;
-	CURL *curlHandler;
-	
+	struct GetRequestParameters {
 	std::string url;
 	std::string info_hash;
 	std::string peer_id;
@@ -39,6 +37,29 @@ private:
 	unsigned int numwant;
 	std::string key;
 	std::string trackerid;
+};
+	
+	struct GetReceivedParameters {
+		std::string failureReason;
+		std::string warningMessage;
+		int interval;
+		int minInterval;
+		std::string trackerID;
+		int complete;
+		int incomplete;
+		boost::any peersDictionary;
+		
+		bool getPeers();
+	};
+	
+	curlpp::Cleanup myCleanup;
+	curlpp::Easy myRequest;
+	std::string getRequest;
+	std::string trackerRawResponse;
+	boost::any trackerResponseDict;
+	CURL *curlHandler;
+	GetRequestParameters parametersSent;
+	GetReceivedParameters parametersReceived;
 	
 	void setPeerID();
 	void setIP();
