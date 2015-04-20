@@ -137,3 +137,16 @@ std::string BDecoder::getRawInfoDict() {
 
 	return (encodedString.substr(start, end-start));
 }
+
+bool BDecoder::isString(const boost::any &inputDict, const char input[]) {
+	const std::string strInput(input);
+	std::unordered_map<std::string,boost::any> dictionary = boost::any_cast<std::unordered_map<std::string,boost::any>>(inputDict);
+	std::unordered_map<std::string,boost::any>::const_iterator lookup = dictionary.find(strInput);
+			
+	if(lookup == dictionary.end())
+		throw 0;
+	if(lookup->second.type() == typeid(std::string))
+		return true;
+	else
+		return false;
+}

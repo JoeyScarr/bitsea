@@ -152,8 +152,20 @@ void Tracker::getResponse() {
 	BDecoder trackerResponse(trackerRawResponse,0);
 	trackerResponse.decode();
 	trackerResponseDict = trackerResponse.get();
+	parametersReceived.failureReason = BDecoder::get<std::string>(trackerResponseDict, "failure reason");
+	parametersReceived.warningMessage = BDecoder::get<std::string>(trackerResponseDict, "warning message");
+	parametersReceived.interval = BDecoder::get<int>(trackerResponseDict, "interval");
+	parametersReceived.minInterval = BDecoder::get<int>(trackerResponseDict, "min interval");
+	parametersReceived.trackerID = BDecoder::get<std::string>(trackerResponseDict, "tracker id");
+	parametersReceived.complete = BDecoder::get<int>(trackerResponseDict, "complete");
+	parametersReceived.incomplete = BDecoder::get<int>(trackerResponseDict, "incomplete");
 	
-	
+	if(BDecoder::isString(trackerResponseDict, "peers")) {
+		processPeerString();
+	}
+	else {
+		processPeerDictionary();
+	}
 }
 
 void Tracker::sendRequest() {
@@ -173,4 +185,37 @@ void Tracker::sendRequest() {
 	catch(curlpp::LogicError & e) {
 		std::cout << e.what() << std::endl;
 	}
+}
+
+void Tracker::processPeerString() {
+	std::string peerString = BDecoder::get<std::string>(trackerResponseDict, "peers");
+	int numberOfPeers = peerString.length() / 6;
+	
+	for(int i=0; i < numberOfPeers; i++) {
+		Tracker::peer currentPeer;
+		const char *ipString = peerString.substr(6*i, 4).c_str();
+		const char *portString = peerString.substr(6*i+4, 2).c_str();
+		currentPeer.ip = ntohl(*ipString);
+		currentPeer.port = ntohs(*portString);
+		currentPeer.peer_id = "";
+		parametersReceived.peerList.push_back(currentPeer);
+	}
+}
+
+void Tracker::processPeerDictionary() {
+	std::vector<boost::any> dictList = BDecoder::get<std::vector<boost::any>>(trackerResponseDict, "peers");
+	
+	for(boost::any dict : dictList) {
+		Tracker::peer currentPeer;
+		currentPeer.peer_id = BDecoder::get<std::string>(dict, "peer id");
+		std::string ipString = BDecoder::get<std::string>(dict, "ip");
+		std::string portString = BDecoder::get<std::string>(dict, "port");
+		
+		struct sockaddr_in sa;
+		inet_pton(AF_INET, ipString.c_str(), &(sa.sin_addr));
+		currentPeer.ip = ntohl(sa.sin_addr.s_addr);
+		currentPeer.port = std::stoi(portString);
+		parametersReceived.peerList.push_back(currentPeer);
+	}
+	
 }

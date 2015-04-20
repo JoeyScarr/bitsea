@@ -36,6 +36,7 @@ public:
 	bool isEmpty();
 	boost::any get();
 	std::string getRawInfoDict();
+	static bool isString(const boost::any &inputDict, const char input[]);
 	
 	template<typename T>
 	static T get(const boost::any &inputDict, const char input[]) {
@@ -48,6 +49,8 @@ public:
 					
 		return boost::any_cast<T>(lookup->second);
 	}
+	
+	
 };
 
 #endif

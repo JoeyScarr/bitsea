@@ -14,6 +14,9 @@
 #include <sstream>
 #include <string>
 #include <boost/any.hpp>
+#include <stdint.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 class Tracker {
 private:
@@ -38,6 +41,12 @@ private:
 	std::string key;
 	std::string trackerid;
 };
+
+	struct peer {
+		std::string peer_id;
+		uint32_t ip;
+		uint16_t port;
+	};
 	
 	struct GetReceivedParameters {
 		std::string failureReason;
@@ -47,9 +56,7 @@ private:
 		std::string trackerID;
 		int complete;
 		int incomplete;
-		boost::any peersDictionary;
-		
-		bool getPeers();
+		std::vector<peer> peerList;
 	};
 	
 	curlpp::Cleanup myCleanup;
@@ -63,6 +70,9 @@ private:
 	
 	void setPeerID();
 	void setIP();
+	void getPeers(int peerType);
+	void processPeerString();
+	void processPeerDictionary();
 
 public:
 	Tracker(std::string &url, std::string &infoHash);
