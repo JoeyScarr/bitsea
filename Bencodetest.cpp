@@ -89,4 +89,5 @@ int main() {
 		//std::cout << "path=" << InfoParser::filePath(dict) << std::endl;
 		//std::cout << "md5=" << InfoParser::fileMD5(dict) << std::endl;
 	//}
+	
 }

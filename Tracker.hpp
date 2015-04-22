@@ -39,7 +39,6 @@ private:
 	std::string ip;
 	unsigned int numwant;
 	std::string key;
-	std::string trackerid;
 };
 
 	struct peer {
@@ -51,9 +50,7 @@ private:
 	struct GetReceivedParameters {
 		std::string failureReason;
 		std::string warningMessage;
-		int interval;
 		int minInterval;
-		std::string trackerID;
 		int complete;
 		int incomplete;
 		std::vector<peer> peerList;
@@ -67,6 +64,9 @@ private:
 	CURL *curlHandler;
 	GetRequestParameters parametersSent;
 	GetReceivedParameters parametersReceived;
+	
+	std::string trackerID;
+	int interval;
 	
 	void setPeerID();
 	void setIP();

@@ -12,7 +12,8 @@ Tracker::Tracker(std::string &url, std::string &infoHash) {
 	parametersSent.sendEvent=true;
 	parametersSent.ip="";
 	parametersSent.key="";
-	parametersSent.trackerid="";
+	trackerID="";
+	interval = 0;
 	parametersSent.uploaded=0;
 	parametersSent.downloaded=0;
 	parametersSent.left=0;
@@ -58,8 +59,8 @@ void Tracker::constructRequest() {
 	if(parametersSent.compact)
 		setParameter(std::string("compact"), std::to_string(parametersSent.compact));
 		
-	if(parametersSent.trackerid.compare("") != 0)
-		setParameter(std::string("trackerid"), parametersSent.trackerid);
+	if(trackerID.compare("") != 0)
+		setParameter(std::string("trackerid"), trackerID);
 		
 	if(parametersSent.sendEvent) {
 		setParameter(std::string("event"), parametersSent.event);
@@ -145,20 +146,61 @@ void Tracker::setKey(std::string key) {
 }
 
 void Tracker::setTrackerID(std::string ID) {
-	parametersSent.trackerid = ID;
+	trackerID = ID;
 }
 
 void Tracker::getResponse() {
 	BDecoder trackerResponse(trackerRawResponse,0);
-	trackerResponse.decode();
+	if(!trackerResponse.decode()) {
+		std::cerr << "BDecode failed.\n";
+		exit(1);
+	}
+	
 	trackerResponseDict = trackerResponse.get();
-	parametersReceived.failureReason = BDecoder::get<std::string>(trackerResponseDict, "failure reason");
-	parametersReceived.warningMessage = BDecoder::get<std::string>(trackerResponseDict, "warning message");
-	parametersReceived.interval = BDecoder::get<int>(trackerResponseDict, "interval");
-	parametersReceived.minInterval = BDecoder::get<int>(trackerResponseDict, "min interval");
-	parametersReceived.trackerID = BDecoder::get<std::string>(trackerResponseDict, "tracker id");
-	parametersReceived.complete = BDecoder::get<int>(trackerResponseDict, "complete");
-	parametersReceived.incomplete = BDecoder::get<int>(trackerResponseDict, "incomplete");
+	
+	try {
+		parametersReceived.failureReason = BDecoder::get<std::string>(trackerResponseDict, "failure reason");
+		std::cerr << "Failure: " << parametersReceived.failureReason << std::endl;
+		exit(1);
+	} catch(int e) {}
+	
+	try {
+		parametersReceived.warningMessage = BDecoder::get<std::string>(trackerResponseDict, "warning message");
+		std::cout << "Warning: " << parametersReceived.warningMessage << std::endl;
+	} catch(int e) {}
+	
+	try {
+		interval = BDecoder::get<int>(trackerResponseDict, "interval");
+		
+	}
+	catch(int e) {
+		std::cerr << "No interval specified.\n";
+		exit(1);
+	}
+	
+	try {
+		parametersReceived.minInterval = BDecoder::get<int>(trackerResponseDict, "min interval");
+	} catch(int e) {}
+	
+	try {
+		trackerID = BDecoder::get<std::string>(trackerResponseDict, "tracker id");
+	} catch(int e) {}
+	
+	try {
+		parametersReceived.complete = BDecoder::get<int>(trackerResponseDict, "complete");
+	}
+	catch(int e) {
+		std::cerr << "No complete count received.\n";
+		exit(1);
+	}
+	
+	try {
+		parametersReceived.incomplete = BDecoder::get<int>(trackerResponseDict, "incomplete");
+	}
+	catch(int e) {
+		std::cerr << "No incomplete count received.\n";
+		exit(1);
+	}
 	
 	if(BDecoder::isString(trackerResponseDict, "peers")) {
 		processPeerString();
@@ -166,6 +208,7 @@ void Tracker::getResponse() {
 	else {
 		processPeerDictionary();
 	}
+	
 }
 
 void Tracker::sendRequest() {
@@ -188,7 +231,14 @@ void Tracker::sendRequest() {
 }
 
 void Tracker::processPeerString() {
-	std::string peerString = BDecoder::get<std::string>(trackerResponseDict, "peers");
+	try {
+		std::string peerString = BDecoder::get<std::string>(trackerResponseDict, "peers");
+	}
+	catch(int e) {
+		std::cerr << "No peers received.\n";
+		exit(1);
+	}
+	
 	int numberOfPeers = peerString.length() / 6;
 	
 	for(int i=0; i < numberOfPeers; i++) {
@@ -203,18 +253,44 @@ void Tracker::processPeerString() {
 }
 
 void Tracker::processPeerDictionary() {
-	std::vector<boost::any> dictList = BDecoder::get<std::vector<boost::any>>(trackerResponseDict, "peers");
+	try {
+		std::vector<boost::any> dictList = BDecoder::get<std::vector<boost::any>>(trackerResponseDict, "peers");
+	}
+	catch(int e}
+		std::cerr << "No peers received.\n";
+		exit(1);
+	}
 	
 	for(boost::any dict : dictList) {
 		Tracker::peer currentPeer;
-		currentPeer.peer_id = BDecoder::get<std::string>(dict, "peer id");
-		std::string ipString = BDecoder::get<std::string>(dict, "ip");
-		std::string portString = BDecoder::get<std::string>(dict, "port");
+		
+		try {
+			currentPeer.peer_id = BDecoder::get<std::string>(dict, "peer id");
+		}
+		catch(int e) {
+			std::cerr << "No peer id received.\n";
+			exit(1);
+		}
+		
+		try {
+			std::string ipString = BDecoder::get<std::string>(dict, "ip");
+		}
+		catch(int e) {
+			std::cerr << "No ip received.\n";
+			exit(1);
+		}
+		
+		try {
+			currentPeer.port = BDecoder::get<int>(dict, "port");
+		}
+		catch(int e) {
+			std::cerr << "No port received.\n";
+			exit(1);
+		}
 		
 		struct sockaddr_in sa;
 		inet_pton(AF_INET, ipString.c_str(), &(sa.sin_addr));
 		currentPeer.ip = ntohl(sa.sin_addr.s_addr);
-		currentPeer.port = std::stoi(portString);
 		parametersReceived.peerList.push_back(currentPeer);
 	}
 	

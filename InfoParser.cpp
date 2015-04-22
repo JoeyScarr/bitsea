@@ -17,7 +17,8 @@ void InfoParser::setPieceLength() {
 		pieceLength = BDecoder::get<int>(infoDict, "piece length");
 	}
 	catch(int e) {
-		pieceLength = 0;
+		std::cerr << "Missing piece length.\n";
+		exit(1);
 	}
 }
 
@@ -35,7 +36,13 @@ void InfoParser::setPieces() {
 		pieces = BDecoder::get<std::string>(infoDict, "pieces");
 	}
 	catch(int e) {
-		pieces = std::string("");
+		std::cerr << "Missing pieces.\n";
+		exit(1);
+	}
+	
+	if(pieces.length() % 20 != 0) {
+		std::cerr << "Pieces are not the right length!\n";
+		exit(1);
 	}
 }
 
@@ -44,7 +51,8 @@ void InfoParser::setName() {
 		name = BDecoder::get<std::string>(infoDict, "name");
 	}
 	catch(int e) {
-		name = std::string("");
+		std::cerr << "Missing filename.\n";
+		exit(1);
 	}
 }
 
@@ -53,7 +61,8 @@ void InfoParser::setLength() {
 		length = BDecoder::get<int>(infoDict, "length");
 	}
 	catch(int e) {
-		length = 0;
+		std::cerr << "Missing file length.\n";
+		exit(1);
 	}
 }
 
@@ -107,10 +116,12 @@ int InfoParser::getNumberOfFiles() {
 int InfoParser::fileLength(std::unordered_map<std::string, boost::any> file) {
 	std::string command("length");
 	std::unordered_map<std::string,boost::any>::const_iterator lookup = file.find(command);
-			
-	if(lookup == file.end())
-		throw 0;
-		
+
+	if(lookup == file.end()) {
+		std::cerr << "No length found.\n";
+		exit(1);
+	}
+
 	return boost::any_cast<int>(lookup->second);
 }
 
@@ -129,8 +140,10 @@ std::string InfoParser::filePath(std::unordered_map<std::string, boost::any> fil
 	std::string command("path");
 	std::unordered_map<std::string,boost::any>::const_iterator lookup = file.find(command);
 			
-	if(lookup == file.end())
-		throw 0;
+	if(lookup == file.end()) {
+		std::cerr << "No path found.\n";
+		exit(1);
+	}
 			
 	std::vector<boost::any> fragmentedPath = boost::any_cast<std::vector<boost::any>>(lookup->second);
 

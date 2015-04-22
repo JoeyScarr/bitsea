@@ -28,13 +28,42 @@ TorrentFileParser::TorrentFileParser(std::string torrentFileName) {
 }
 
 void TorrentFileParser::process() {
-	creationDate = getCreationDate();	
-	announce = getAnnounce();	
-	comment = getComment();
-	createdBy = getCreatedBy();
-	encoding = getEncoding();
-	announceList = getAnnounceList();
-	info.initialise(getInfo());
+	try {
+		creationDate = getCreationDate();
+	}
+	catch(int e) {}
+	
+	try {
+		announce = getAnnounce();
+	}
+	catch(int e) {
+		std::cerr << "Missing announce.\n";
+		exit(1);
+	}
+	
+	try {
+		comment = getComment();
+	} catch(int e) {}
+	
+	try {
+		createdBy = getCreatedBy();
+	} catch(int e) {}
+	
+	try {
+		encoding = getEncoding();
+	} catch(int e) {}
+	
+	try {
+		announceList = getAnnounceList();
+	} catch(int e) {}
+	
+	try {
+		info.initialise(getInfo());
+	}
+	catch(int e) {
+		std::cerr << "Missing info dictionary.\n";
+		exit(1);
+	}
 }
 
 std::string TorrentFileParser::getAnnounce() {
