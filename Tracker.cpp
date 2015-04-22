@@ -296,5 +296,89 @@ void Tracker::processPeerDictionary() {
 		currentPeer.ip = ntohl(sa.sin_addr.s_addr);
 		parametersReceived.peerList.push_back(currentPeer);
 	}
+}
+
+bool Tracker::constructScrapeRequest() {
+	std::string hash = "";
+	return constructScrapeRequest(hash);
+}
+
+bool Tracker::constructScrapeRequest(std::string &hash) {
+	std::string url = parametersSent.url;
+	std::string newUrl;
+	std::string tail;
+	unsigned int found = url.find_last_of("/");
+	newUrl = url.substr(0, found+1);
+	tail = url.substr(found+1);
 	
+	if(tail.substr(0,8).compare("announce") != 0) {
+		return false;
+	}
+	
+	boost::replace_first(tail, "announce", "scrape");
+	getRequest = newUrl + tail;
+	
+	if(!hash.empty()) {
+		setParameter(std::string("info_hash"), hash);
+	}
+}
+
+void Tracker::getScrapeResponse() {
+	BDecoder trackerResponse(trackerRawResponse,0);
+	if(!trackerResponse.decode()) {
+		std::cerr << "BDecode failed.\n";
+		exit(1);
+	}
+	
+	trackerResponseDict = trackerResponse.get();
+	std::unordered_map<std::string, boost::any> fileDict = BDecoder::get<std::unordered_map<std::string, boost::any>>(trackerResponseDict, "files");
+	
+	try {
+		parametersScrapeReceived.complete = BDecoder::get<int>(fileDict, "complete");
+	}
+	catch(int e) {
+		std::cerr << "Missing complete field.\n";
+		exit(1);
+	}
+	
+	try {
+		parametersScrapeReceived.incomplete = BDecoder::get<int>(fileDict, "incomplete");
+	}
+	catch(int e) {
+		std::cerr << "Missing incomplete field.\n";
+		exit(1);
+	}
+	
+	try {
+		parametersScrapeReceived.downloaded = BDecoder::get<int>(fileDict, "downloaded");
+	}
+	catch(int e) {
+		std::cerr << "Missing downloaded field.\n";
+		exit(1);
+	}
+	
+	try {
+		parametersScrapeReceived.name = BDecoder::get<std::string>(fileDict, "name");
+	}
+	catch(int e) {}
+	
+	try {
+		parametersScrapeReceived.failureReason = BDecoder::get<std::string>(fileDict, "name");
+		std::cerr << "Failure reason: " << parametersScrapeReceived.failureReason << std::endl;
+		exit(1);
+	}
+	catch(int e) {}
+	
+	try {
+		parametersScrapeReceived.flagsDict = BDecoder::get<std::unordered_map<std::string, boost::any>>(fileDict, "flags");
+		
+		try {
+			parametersScrapeReceived.min_request_interval = BDecoder::get<int>(parametersScrapeReceived.flagsDict, "min_request_interval");
+		}
+		catch(int e) {
+			std::cerr << "Missing min_request_interval.\n";
+			exit(1);
+		}
+		
+	} catch(int e) {}
 }

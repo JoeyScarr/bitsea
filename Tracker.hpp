@@ -14,6 +14,7 @@
 #include <sstream>
 #include <string>
 #include <boost/any.hpp>
+#include <boost/algorithm/string.hpp>
 #include <stdint.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -56,6 +57,16 @@ private:
 		std::vector<peer> peerList;
 	};
 	
+	struct GetScrapeReceivedParameters {
+		int complete;
+		int downloaded;
+		int incomplete;
+		std::string name;
+		std::string failureReason;
+		boost::any flagsDict;
+		int min_request_interval;
+	};
+	
 	curlpp::Cleanup myCleanup;
 	curlpp::Easy myRequest;
 	std::string getRequest;
@@ -64,6 +75,7 @@ private:
 	CURL *curlHandler;
 	GetRequestParameters parametersSent;
 	GetReceivedParameters parametersReceived;
+	GetScrapeReceivedParameters parametersScrapeReceived;
 	
 	std::string trackerID;
 	int interval;
@@ -78,8 +90,11 @@ public:
 	Tracker(std::string &url, std::string &infoHash);
 	~Tracker();
 	void constructRequest();
+	bool constructScrapeRequest();
+	bool constructScrapeRequest(std::string &hash);
 	void sendRequest();
 	void getResponse();
+	void getScrapeResponse();
 	void setParameter(std::string param, std::string value);
 	std::string urlEncode(std::string string);
 	void setPort(unsigned int port);
