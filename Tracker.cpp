@@ -231,8 +231,9 @@ void Tracker::sendRequest() {
 }
 
 void Tracker::processPeerString() {
+	std::string peerString;
 	try {
-		std::string peerString = BDecoder::get<std::string>(trackerResponseDict, "peers");
+		 peerString = BDecoder::get<std::string>(trackerResponseDict, "peers");
 	}
 	catch(int e) {
 		std::cerr << "No peers received.\n";
@@ -253,10 +254,11 @@ void Tracker::processPeerString() {
 }
 
 void Tracker::processPeerDictionary() {
+	std::vector<boost::any> dictList;
 	try {
-		std::vector<boost::any> dictList = BDecoder::get<std::vector<boost::any>>(trackerResponseDict, "peers");
+		 dictList = BDecoder::get<std::vector<boost::any>>(trackerResponseDict, "peers");
 	}
-	catch(int e}
+	catch(int e) {
 		std::cerr << "No peers received.\n";
 		exit(1);
 	}
@@ -272,8 +274,9 @@ void Tracker::processPeerDictionary() {
 			exit(1);
 		}
 		
+		std::string ipString;
 		try {
-			std::string ipString = BDecoder::get<std::string>(dict, "ip");
+			ipString = BDecoder::get<std::string>(dict, "ip");
 		}
 		catch(int e) {
 			std::cerr << "No ip received.\n";
