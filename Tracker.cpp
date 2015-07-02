@@ -243,7 +243,7 @@ void Tracker::processPeerString() {
 	int numberOfPeers = peerString.length() / 6;
 	
 	for(int i=0; i < numberOfPeers; i++) {
-		Tracker::peer currentPeer;
+		Tracker::Peer currentPeer;
 		const char *ipString = peerString.substr(6*i, 4).c_str();
 		const char *portString = peerString.substr(6*i+4, 2).c_str();
 		currentPeer.ip = ntohl(*ipString);
@@ -264,7 +264,7 @@ void Tracker::processPeerDictionary() {
 	}
 	
 	for(boost::any dict : dictList) {
-		Tracker::peer currentPeer;
+		Tracker::Peer currentPeer;
 		
 		try {
 			currentPeer.peer_id = BDecoder::get<std::string>(dict, "peer id");

@@ -25,6 +25,12 @@ private:
 	static const int DEFAULT_COMPACT = 1;
 	static const int DEFAULT_NO_PEER_ID = 0;
 	
+	struct Peer {
+	std::string peer_id;
+	uint32_t ip;
+	uint16_t port;
+};
+	
 	struct GetRequestParameters {
 	std::string url;
 	std::string info_hash;
@@ -41,12 +47,6 @@ private:
 	unsigned int numwant;
 	std::string key;
 };
-
-	struct peer {
-		std::string peer_id;
-		uint32_t ip;
-		uint16_t port;
-	};
 	
 	struct GetReceivedParameters {
 		std::string failureReason;
@@ -54,7 +54,7 @@ private:
 		int minInterval;
 		int complete;
 		int incomplete;
-		std::vector<peer> peerList;
+		std::vector<Peer> peerList;
 	};
 	
 	struct GetScrapeReceivedParameters {

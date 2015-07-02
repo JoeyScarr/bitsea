@@ -1,0 +1,19 @@
+1. Grab peer list from tracker.
+
+2. For each peer, up to the maximum number of peers you want to connect to, initiate a handshake.
+
+3. Select peers you want to download from
+
+4. Send 
+	keep-alive. 
+	Unchoke. 
+	interested.
+	request a block we don't have.
+	
+5. Receive 
+	piece we want
+	have block to confirm receipt
+	
+
+Queuing
+	Always have 10 things downloading if possible.
