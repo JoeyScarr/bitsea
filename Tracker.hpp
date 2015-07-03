@@ -27,8 +27,8 @@ private:
 	
 	struct Peer {
 	std::string peer_id;
-	uint32_t ip;
-	uint16_t port;
+	std::uint32_t ip;
+	std::uint16_t port;
 };
 	
 	struct GetRequestParameters {

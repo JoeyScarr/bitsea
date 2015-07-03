@@ -8,6 +8,20 @@
 
 class PeerClient {
 private:
+
+	struct MessageIds {
+		const uint8_t choke = 0;
+		const uint8_t unchoke = 1;
+		const uint8_t interested = 2;
+		const uint8_t notInterested = 3;
+		const uint8_t have = 4;
+		const uint8_t bitfield = 5;
+		const uint8_t request = 6;
+		const uint8_t piece = 7;
+		const uint8_t cancel = 8;
+		const uint8_t port = 9;
+	}
+
 	static const int NETWORK_BUFFER_SIZE = 1024;
 	bool choked;
 	bool interested;
@@ -44,6 +58,7 @@ public:
 	bool createPeerConnection();
 	bool startListener();
 	void initHandshakeMessage();
+	void keepAlive();
 };
 
 class PeerServer {

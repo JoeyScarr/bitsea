@@ -56,6 +56,15 @@ void PeerClient::handleNetworking() {
 
 void PeerClient::processNetworkData(std::array<char, NETWORK_BUFFER_SIZE> buffer, size_t length) {
 	char *data = buffer.data();
-	uint32_t command;
+	std::uint8_t *networkData = reinterpret_cast<std::uint8_t *>(data);
+	std::uint32_t messageLength = *reinterpret_cast<std::uint32_t *>(networkData);
+	messageLength = ntohl(messageLength);
+	
+	if(messageLength == 0) {
+		PeerClient::keepAlive();
+		return;
+	}
+	
+	std::uint8_t messageId = networkData[4];
 	
 }
