@@ -12,6 +12,7 @@
 #include <chrono>
 #include <asio/use_future.hpp>
 #include "Tracker.hpp"
+#include <algorithm>
 
 class PeerClient {
 private:
@@ -31,6 +32,12 @@ private:
 	
 	static const int NETWORK_BUFFER_SIZE = 1024;
 	static const int CONNECTION_TIMEOUT_LIMIT = 120;
+	static const int MESSAGE_OVERHEAD_LENGTH = 5;
+	static const int MESSAGE_ID_POSITION = 3;
+	static const int HANDSHAKE_LENGTH = 8;
+	static const int COMMAND_READY = 0;
+	static const int PROCESS_GET_MORE_DATA = 1;
+	static const int PROCESS_READY = 0;
 	
 	struct Status {
 		bool choked;
@@ -41,6 +48,14 @@ private:
 		bool peer_interested;
 		std::vector<std::uint8_t> bitfield;
 	} status;
+	
+	struct Command {
+		std::uint8_t messageId;
+		int length;
+		std::vector<uint8_t> payload;
+	} commandBuffer;
+
+	std::vector<uint8_t> networkBuffer;
 
 	std::string sendBuffer;
 	std::string handshake;
@@ -52,9 +67,7 @@ private:
 	asio::ip::tcp::resolver::query query;
 	asio::ip::tcp::socket socket;
 	asio::ip::tcp::resolver::iterator endpoint_iterator;
-	
-	time_t lastReceivedMessage;
-	
+		
 public:
 	PeerClient(const std::string &hash, const std::string &id, const std::string &hostname, const std::string &port)
 	: info_hash(hash), peer_id(id), resolver(io_service), 
