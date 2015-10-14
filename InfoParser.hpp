@@ -16,7 +16,8 @@ private:
 	std::string MD5;
 	int numberOfFiles;
 	std::string hash;
-	
+	int fileMode;
+
 	void setPieces();
 	void setPieceLength();
 	void setPrivate();
@@ -27,7 +28,10 @@ private:
 	void setHash();
 
 public:
-	std::string string;
+	static const int FILEMODE_SINGLE = 1;
+	static const int FILEMODE_MULTI = 2;
+	
+	std::string rawString;
 
 	std::vector<boost::any> files;
 	std::string getPieces();
@@ -42,6 +46,7 @@ public:
 	static int fileLength(std::unordered_map<std::string, boost::any> file);
 	static std::string fileMD5(std::unordered_map<std::string, boost::any> file);
 	static std::string filePath(std::unordered_map<std::string, boost::any> file);
+	int getFileMode();
 };
 
 #endif

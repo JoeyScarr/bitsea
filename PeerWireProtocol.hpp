@@ -38,6 +38,7 @@ private:
 	static const int COMMAND_READY = 0;
 	static const int PROCESS_GET_MORE_DATA = 1;
 	static const int PROCESS_READY = 0;
+	static const int PROCESS_DROP_PEER_INVALID_MESSAGE = 2;
 	
 	struct Status {
 		bool choked;
@@ -81,13 +82,13 @@ public:
 	
 	void handleNetworking();
 	size_t networkRead(std::array<std::uint8_t, NETWORK_BUFFER_SIZE> &buf, asio::error_code &error);
-	void processNetworkData(std::array<std::uint8_t, NETWORK_BUFFER_SIZE> buffer, size_t length); // process input from readNetworkData.
+	int processNetworkData(std::array<std::uint8_t, NETWORK_BUFFER_SIZE> buffer, size_t length); // process input from readNetworkData.
 	void sendHandshake();
 	bool createPeerConnection();
 	bool startListener();
 	void initHandshakeMessage();
 	void keepAlive();
-	void processMessage(std::uint8_t messageId, std::uint8_t *data, int payloadSize);
+	int processMessage(std::uint8_t messageId, std::uint8_t *data, int payloadSize);
 	
 	void choke();
 	void unchoke();

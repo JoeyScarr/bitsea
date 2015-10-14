@@ -134,7 +134,6 @@ boost::any BDecoder::get() {
 std::string BDecoder::getRawInfoDict() {
 	int start = infoDictPosition.first;
 	int end = infoDictPosition.second;
-
 	return (encodedString.substr(start, end-start));
 }
 

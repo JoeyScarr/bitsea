@@ -107,6 +107,7 @@ public:
 	void setNumWant(unsigned int numwant);
 	void setKey(std::string key);
 	void setTrackerID(std::string ID);
+	void update();
 };
 
 #endif

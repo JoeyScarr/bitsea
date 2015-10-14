@@ -23,7 +23,7 @@ TorrentFileParser::TorrentFileParser(std::string torrentFileName) {
 		std::exit(1);
 	}
 	
-	info.string = torrentFileDecoder.getRawInfoDict();
+	info.rawString = torrentFileDecoder.getRawInfoDict();
 	process();
 }
 

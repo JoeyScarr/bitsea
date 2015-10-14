@@ -61,7 +61,11 @@ void PeerClient::handleNetworking() {
 				throw asio::system_error(error); // Some other error.
 
 			len = future.get();
-			processNetworkData(buf, len);
+			int processStatus = processNetworkData(buf, len);
+			if(processStatus == PROCESS_DROP_PEER_INVALID_MESSAGE) {
+				std::cerr << "Peer " + peer_id + " sent an invalid message. Dropping connection.\n";
+				break;
+			}
 		}
 	}
 	catch (std::exception& e) {
@@ -97,7 +101,9 @@ int PeerClient::processCommand() {
 	for(int i=MESSAGE_OVERHEAD_LENGTH; i < totalCommandLength; i++)
 		commandBuffer.payload.push_back(networkBuffer[i]);
 		
-	processMessage();
+	int messageStatus = processMessage();
+	if(messageStatus != PROCESS_READY)
+		return messageStatus;
 	
 	std::vector::const_iterator first = networkBuffer.begin() + totalCommandLength;
 	std::vector::const_iterator last = networkBuffer.end();
@@ -106,7 +112,7 @@ int PeerClient::processCommand() {
 	networkBuffer = remainingData;
 }
 
-void PeerClient::processNetworkData(std::array<std::uint8_t, NETWORK_BUFFER_SIZE> buffer, size_t length) {
+int PeerClient::processNetworkData(std::array<std::uint8_t, NETWORK_BUFFER_SIZE> buffer, size_t length) {
 	std::uint8_t *networkData = buffer.data();
 	int commandStatus;
 	
@@ -115,11 +121,17 @@ void PeerClient::processNetworkData(std::array<std::uint8_t, NETWORK_BUFFER_SIZE
 	}
 	
 	int processStatus = PROCESS_READY;
-	while(networkBuffer.size() >= MESSAGE_OVERHEAD_LENGTH && processStatus != PROCESS_GET_MORE_DATA)
+	while(networkBuffer.size() >= MESSAGE_OVERHEAD_LENGTH && processStatus != PROCESS_GET_MORE_DATA) {
 		processStatus = processCommand();
+		if(processStatus == PROCESS_DROP_PEER_INVALID_MESSAGE) {
+			return PROCESS_DROP_PEER_INVALID_MESSAGE;
+		}
+	}
+	
+	return PROCESS_READY;
 }
 
-void PeerClient::processMessage(std::uint8_t messageId, std::uint8_t *data, int payloadSize) {
+int PeerClient::processMessage(std::uint8_t messageId, std::uint8_t *data, int payloadSize) {
 	switch(messageId) {
 		case mId.choke:
 			choke();
@@ -151,7 +163,10 @@ void PeerClient::processMessage(std::uint8_t messageId, std::uint8_t *data, int 
 		case mId.port:
 			port(data, payloadSize);
 			break;
+		default:
+			return PROCESS_DROP_PEER_INVALID_MESSAGE;
 	}
+	return PROCESS_READY;
 }
 
 void PeerClient::keepAlive() {

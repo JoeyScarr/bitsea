@@ -2,10 +2,10 @@
 
 void InfoParser::initialise(std::unordered_map<std::string, boost::any> inputDict) {
 	infoDict = inputDict;
+	setFiles();
 	setPieceLength();
 	setPrivate();
 	setPieces();
-	setFiles();
 	setName();
 	setLength();
 	setMD5();
@@ -57,12 +57,14 @@ void InfoParser::setName() {
 }
 
 void InfoParser::setLength() {
-	try {
-		length = BDecoder::get<int>(infoDict, "length");
-	}
-	catch(int e) {
-		std::cerr << "Missing file length.\n";
-		exit(1);
+	if(this->getFileMode() == FILEMODE_SINGLE) {
+		try {
+			length = BDecoder::get<int>(infoDict, "length");
+		}
+		catch(int e) {
+			std::cerr << "Missing file length.\n";
+			exit(1);
+		}
 	}
 }
 
@@ -79,8 +81,10 @@ void InfoParser::setFiles() {
 	try {
 		files = BDecoder::get<std::vector<boost::any>>(infoDict, "files");
 		numberOfFiles = files.size();
+		fileMode = FILEMODE_MULTI;
 	}
 	catch(int e) {
+		fileMode = FILEMODE_SINGLE;
 		numberOfFiles = 1;
 	}
 }
@@ -148,6 +152,7 @@ std::string InfoParser::filePath(std::unordered_map<std::string, boost::any> fil
 	std::vector<boost::any> fragmentedPath = boost::any_cast<std::vector<boost::any>>(lookup->second);
 
 	std::string path;
+	path += ".";
 	for(boost::any pathLevel : fragmentedPath) {
 		std::string strPathLevel = boost::any_cast<std::string>(pathLevel);
 		path += "/";
@@ -158,13 +163,19 @@ std::string InfoParser::filePath(std::unordered_map<std::string, boost::any> fil
 
 void InfoParser::setHash() {
 	unsigned char hashString[SHA_DIGEST_LENGTH];
-	const unsigned char *infoString = reinterpret_cast<const unsigned char*>(string.c_str());
-	unsigned long length = string.length();
-	SHA1( infoString , length , hashString);
-	hash = std::string(reinterpret_cast<const char *>(hashString));
+	const unsigned char *infoString = reinterpret_cast<const unsigned char*>(rawString.c_str());
+	unsigned long length = rawString.length();
+	SHA1( infoString , length, hashString);
+	
+	for(int i=0; i < SHA_DIGEST_LENGTH; i++)
+		hash += hashString[i];
 }
 
 std::string InfoParser::getHash() {
 	return hash;
+}
+
+int InfoParser::getFileMode() {
+	return fileMode;
 }
 

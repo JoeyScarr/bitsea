@@ -25,7 +25,6 @@ private:
 	int getCreationDate();
 	std::unordered_map<std::string, boost::any> getInfo();
 	std::vector<boost::any> getAnnounceList();
-	std::string getAnnounce();
 	std::string getComment();
 	std::string getCreatedBy();
 	std::string getEncoding();
@@ -33,6 +32,8 @@ private:
 public:
 	TorrentFileParser(std::string torrentFileName);
 	InfoParser info;
+	std::string getAnnounce();
+
 };
 
 #endif

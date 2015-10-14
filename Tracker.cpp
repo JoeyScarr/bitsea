@@ -24,6 +24,15 @@ Tracker::~Tracker() {
 	curl_easy_cleanup(curlHandler);
 }
 
+void Tracker::update() {
+	constructRequest();
+	std::cout << "Request: " << getRequest << std::endl;
+	sendRequest();
+	
+	std::cout << "Tracker response: " << trackerRawResponse << std::endl;
+	//getResponse();
+}
+
 std::string Tracker::urlEncode(std::string string) {
 	char *encoded = curl_easy_escape(curlHandler, string.c_str(), string.length());
 	std::string result(encoded);
@@ -36,14 +45,15 @@ void Tracker::setParameter(std::string parameter, std::string value) {
 }
 
 void Tracker::constructRequest() {
-	getRequest = parametersSent.url;
-	setParameter(std::string("info_hash"), parametersSent.info_hash);
+	getRequest = parametersSent.url + "?";
+	getRequest += std::string("info_hash") + "=" + urlEncode(parametersSent.info_hash);
 	setParameter(std::string("peer_id"), parametersSent.peer_id);
 	setParameter(std::string("port"), std::to_string(parametersSent.port));
 	setParameter(std::string("uploaded"), std::to_string(parametersSent.uploaded));
 	setParameter(std::string("downloaded"), std::to_string(parametersSent.downloaded));
-	setParameter(std::string("left"), std::to_string(parametersSent.left));
-	
+	//setParameter(std::string("left"), std::to_string(parametersSent.left));
+	setParameter(std::string("left"), std::to_string(5000));
+
 	if(parametersSent.key.compare("") != 0)
 		setParameter(std::string("key"), parametersSent.key);
 	
@@ -62,10 +72,11 @@ void Tracker::constructRequest() {
 	if(trackerID.compare("") != 0)
 		setParameter(std::string("trackerid"), trackerID);
 		
-	if(parametersSent.sendEvent) {
-		setParameter(std::string("event"), parametersSent.event);
-		parametersSent.sendEvent = false;
-	}
+	//if(parametersSent.sendEvent) {
+		//setParameter(std::string("event"), parametersSent.event);
+		//parametersSent.sendEvent = false;
+	//}
+	
 }
 
 void Tracker::setPeerID() {

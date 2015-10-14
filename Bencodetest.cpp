@@ -68,18 +68,18 @@ int main() {
 	//std::cout << "Info: getHash: " << single.info.getHash() << " of length " << single.info.getHash().length() << std::endl;
 	std::string testURL("test");
 	std::string infoHash = single.info.getHash();
-	Tracker trackHandler(testURL, infoHash);
+	//Tracker trackHandler(testURL, infoHash);
 	//std::cout << "URL encoded hash: " <<  trackHandler.urlEncode(single.info.getHash()) << std::endl;
 
-	//std::string multipleFile("multi.torrent");
-	//TorrentFileParser multi(multipleFile);
-	//std::cout << "getPieces: " << multi.info.getPieces() << std::endl;
-	//std::cout << "getPieceLength: " << multi.info.getPieceLength() << std::endl;
-	//std::cout << "getName: " << multi.info.getName() << std::endl;
-	//std::cout << "getPrivate: " << multi.info.getPrivate() << std::endl;
-	//std::cout << "getLength: " << multi.info.getLength() << std::endl;
-	//std::cout << "getMD5: " << multi.info.getMD5() << std::endl;
-	//std::cout << "getNumberOfFiles: " << multi.info.getNumberOfFiles() << std::endl;
+	std::string multipleFile("multi.torrent");
+	TorrentFileParser multi(multipleFile);
+	std::cout << "getPieces: " << multi.info.getPieces() << std::endl;
+	std::cout << "getPieceLength: " << multi.info.getPieceLength() << std::endl;
+	std::cout << "getName: " << multi.info.getName() << std::endl;
+	std::cout << "getPrivate: " << multi.info.getPrivate() << std::endl;
+	std::cout << "getLength: " << multi.info.getLength() << std::endl;
+	std::cout << "getMD5: " << multi.info.getMD5() << std::endl;
+	std::cout << "getNumberOfFiles: " << multi.info.getNumberOfFiles() << std::endl;
 
 	//int i=1;
 	//for(boost::any file : multi.info.files) {
