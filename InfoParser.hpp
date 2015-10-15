@@ -34,7 +34,7 @@ public:
 	std::string rawString;
 
 	std::vector<boost::any> files;
-	std::string getPieces();
+	std::vector<std::string> getPieces();
 	int getPieceLength();
 	int getPrivate();
 	std::string getName();

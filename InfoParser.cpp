@@ -89,8 +89,17 @@ void InfoParser::setFiles() {
 	}
 }
 
-std::string InfoParser::getPieces() {
-	return pieces;
+std::vector<std::string> InfoParser::getPieces() {
+	std::vector<std::string> pieceList;
+	int numPieces = pieces.length() / 20;
+	char hash[20];
+	for(int i=0; i < numPieces; i++) {
+		for(int j=0; j < 20; j++) {
+			hash[j] = pieces[20*i+j];
+		}
+		pieceList.push_back(std::string(hash));
+	}
+	return pieceList;
 }
 
 int InfoParser::getPieceLength() {

@@ -7,6 +7,8 @@ int main(int argc, char *argv[]) {
 	boost::thread_group worker_threads;
 	
 	cli::Settings programSettings;
+	std::vector<Piece> pieces;
+	std::vector<std::pair<std::string, int>> fileList;
 	TorrentStats tStats;
 	tStats.downloaded = 0;
 	tStats.uploaded = 0;
@@ -14,7 +16,9 @@ int main(int argc, char *argv[]) {
 		
 	cli::parseCommandLine(argc, argv, programSettings);
 	TorrentFileParser torrentInfo(programSettings.fileName);	
-	allocateStorage(torrentInfo, tStats);
+	fileList = allocateStorage(torrentInfo, tStats);
+	initPieceDatabase(torrentInfo, pieces);
+	
 	boost::shared_ptr<Tracker> trackMan = initTracker(torrentInfo, tStats);
 	
 	for(int i=0; i < THREAD_MAX; i++)
@@ -23,9 +27,8 @@ int main(int argc, char *argv[]) {
 	startTrackerUpdater(io_service, trackMan);
 	std::vector<Tracker::Peer> peerList = trackMan->getPeers();
 	
-	for(int i=0; i < peerList.size(); i++) {
+	for(int i=0; i < peerList.size(); i++)
 		talkToPeer(io_service, peerList[i], tStats, torrentInfo, trackMan->getPeerId());
-	}
 	
 	//io_service->stop();
     worker_threads.join_all();
@@ -33,9 +36,20 @@ int main(int argc, char *argv[]) {
 	return 0;
 }
 
+void initPieceDatabase(TorrentFileParser &torrentInfo, std::vector<Piece> &pieces) {
+	std::vector<std::string> pieceHashes=torrentInfo.info.getPieces();
+	for(std::vector<std::string>::iterator it = pieceHashes.begin(); it != pieceHashes.end(); it++) {
+		Piece piece;
+		piece.hash = *it;
+		piece.have = false;
+		pieces.push_back(piece);
+	}
+}
+
 void talkToPeer(boost::shared_ptr<boost::asio::io_service> io_service, Tracker::Peer peerAddress, TorrentStats &stats, TorrentFileParser &torrentInfo, std::string peerId) {
 	std::string infoHash = torrentInfo.info.getHash();
 	PeerClient peer(io_service, peerAddress, stats, infoHash, peerId);
+	peer.launch();
 }
 
 boost::shared_ptr<Tracker> initTracker(TorrentFileParser &torrentInfo, TorrentStats &stats) {
@@ -53,7 +67,7 @@ void startTrackerUpdater(boost::shared_ptr<boost::asio::io_service> io_service, 
 	timer->async_wait(boost::bind(&trackerUpdateHandler, _1, timer, trackerManager));
 }
 
-void allocateStorage(TorrentFileParser &torrentInfo, TorrentStats &stats) {
+std::vector<std::pair<std::string, int>> allocateStorage(TorrentFileParser &torrentInfo, TorrentStats &stats) {
 	int mode = torrentInfo.info.getFileMode();
 	std::vector<std::pair<std::string, int>> files;
 
@@ -79,6 +93,8 @@ void allocateStorage(TorrentFileParser &torrentInfo, TorrentStats &stats) {
 		stats.left += length;
 		createFile(fileName, length);
 	}
+	
+	return files;
 }
 
 void createFile(std::string filePath, int size) {
