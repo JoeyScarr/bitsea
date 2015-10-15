@@ -37,6 +37,7 @@ void PeerClient::onConnect(const boost::system::error_code &ec, boost::shared_pt
 	else {
 		initHandshakeMessage();
 		sendHandshake(sock);
+		readHandshake(sock);
 	}
 }
 
@@ -65,18 +66,72 @@ void PeerClient::sendHandshake(boost::shared_ptr<boost::asio::ip::tcp::socket> s
 	}
 }
 
-void PeerClient::readHandshake(boost::shared_ptr<boost::asio::ip::tcp::socket> sock) {
-	std::array<std::uint8_t, NETWORK_BUFFER_SIZE> buf;
-	try {
-		boost::system::error_code error;
-		sock->async_read_some(boost::asio::buffer(buf, NETWORK_BUFFER_SIZE), boost::bind(&PeerClient::readHandler, this, boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred));
+bool PeerClient::readHandshake(boost::shared_ptr<boost::asio::ip::tcp::socket> sock) {
+	std::uint8_t buf[NETWORK_BUFFER_SIZE];
+	int handshakeSize = 1000;
+	bool handshakeSizeSet = false;
+	while(readBufferSize < handshakeSize || !handshakeSizeSet) {
+		try {
+			boost::system::error_code error;
+			sock->async_read_some(boost::asio::buffer(buf, NETWORK_BUFFER_SIZE), boost::bind(&PeerClient::readHandler, this, boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred));
+			
+			if(readBufferSize > 0 || !handshakeSizeSet) {
+				handshakeSizeSet = true;
+				std::uint8_t size = *((std::uint8_t *)buf);
+				handshakeSize = size;
+			}
+		}
+		catch (std::exception& e) {
+			std::cerr << e.what() << std::endl;
+		}
 	}
-	catch (std::exception& e) {
-		std::cerr << e.what() << std::endl;
+	
+	bool handshakePassed = verifyHandshake(buf);
+	if(!handshakePassed) {
+		sock->close();
+		return false;
 	}
+
+	for(int i=handshakeSize; i < readBufferSize; i++) {
+		networkBuffer.push_back(buf[i]);
+	}
+	readBufferSize = networkBuffer.size();
+	return true;
+}
+
+bool PeerClient::verifyHandshake(std::uint8_t *buffer) {
+	int pstrlen = buffer[0];
+	int length = pstrlen + 49;
+	std::string hash("");
+	std::string pstr("");
+	for(int i=1; i <= pstrlen; i++) {
+		pstr += buffer[i];
+	}
+	
+	if(pstr != "BitTorrent protocol")
+		return false;
+	
+	for(int i=0; i < 20; i++) {
+		hash += buffer[pstrlen+1+i];
+	}
+	
+	if(hash != infoHash)
+		return false;
+	
+	std::string id("");
+	for(int i=0; i < 20; i++) {
+		id += buffer[pstrlen+20+8+1+i];
+	}
+	
+	if(peerId != "" && peerId != id)
+		return false;
+		
+	peerId = id;
+	return true;
 }
 
 void PeerClient::readHandler(const boost::system::error_code& error, std::size_t bytes_transferred) {
+	readBufferSize += bytes_transferred;
 }
 
 void PeerClient::keepAlive() {

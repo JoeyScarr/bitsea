@@ -64,6 +64,7 @@ private:
 	} commandBuffer;
 
 	std::vector<uint8_t> networkBuffer;
+	int readBufferSize;
 	std::string sendBuffer;
 	std::string handshake;
 
@@ -77,8 +78,8 @@ private:
 	void onConnect(const boost::system::error_code &ec, boost::shared_ptr<boost::asio::ip::tcp::socket> sock);
 	void initHandshakeMessage();
 	void sendHandshake(boost::shared_ptr<boost::asio::ip::tcp::socket> sock);
-	void readHandshake(boost::shared_ptr<boost::asio::ip::tcp::socket> sock);
-	void verifyHandshake();
+	bool readHandshake(boost::shared_ptr<boost::asio::ip::tcp::socket> sock);
+	bool verifyHandshake(std::uint8_t *buffer);
 	void keepAlive();
 	void readHandler(const boost::system::error_code& error, std::size_t bytes_transferred);
 
@@ -94,6 +95,7 @@ public:
 		status.am_interested = 0;
 		status.peer_choking = 1;
 		status.peer_interested = 0;
+		readBufferSize = 0;
 	}
 
 	void launch();
