@@ -2,15 +2,16 @@
 #define PEERWIREPROTOCOL_H
 
 #include <array>
-#include <asio.hpp>
-#include <asio/ip/tcp.hpp>
+#include <boost/asio.hpp>
+#include <boost/asio/ip/tcp.hpp>
+#include <boost/asio/error.hpp>
 #include <time.h>
 #include <memory>
 #include <vector>
 #include <future>
 #include <thread>
 #include <chrono>
-#include <asio/use_future.hpp>
+#include <boost/asio/use_future.hpp>
 #include "Tracker.hpp"
 #include <algorithm>
 
@@ -63,14 +64,14 @@ private:
 	const std::string &info_hash;
 	const std::string &peer_id;
 	
-	asio::io_service io_service;
-	asio::ip::tcp::resolver resolver;
-	asio::ip::tcp::resolver::query query;
-	asio::ip::tcp::socket socket;
-	asio::ip::tcp::resolver::iterator endpoint_iterator;
+	boost::asio::io_service io_service;
+	boost::asio::ip::tcp::resolver resolver;
+	boost::asio::ip::tcp::resolver::query query;
+	boost::asio::ip::tcp::socket socket;
+	boost::asio::ip::tcp::resolver::iterator endpoint_iterator;
 		
 public:
-	PeerClient(const std::string &hash, const std::string &id, const std::string &hostname, const std::string &port)
+	PeerClient(const std::string &hash, const std::string &id, const std::string &hostname, const std::string &port, boost::asio::io_service io_service)
 	: info_hash(hash), peer_id(id), resolver(io_service), 
 	  socket(io_service), query(hostname, port) {
 		status.am_choking = 1;
@@ -81,7 +82,7 @@ public:
 	}
 	
 	void handleNetworking();
-	size_t networkRead(std::array<std::uint8_t, NETWORK_BUFFER_SIZE> &buf, asio::error_code &error);
+	size_t networkRead(std::array<std::uint8_t, NETWORK_BUFFER_SIZE> &buf, boost::system::error_code &error);
 	int processNetworkData(std::array<std::uint8_t, NETWORK_BUFFER_SIZE> buffer, size_t length); // process input from readNetworkData.
 	void sendHandshake();
 	bool createPeerConnection();
@@ -89,6 +90,7 @@ public:
 	void initHandshakeMessage();
 	void keepAlive();
 	int processMessage(std::uint8_t messageId, std::uint8_t *data, int payloadSize);
+	int processCommand();
 	
 	void choke();
 	void unchoke();
@@ -103,8 +105,5 @@ public:
 };
 
 const int PeerClient::CONNECTION_TIMEOUT_LIMIT;
-
-class PeerServer {
-};
 
 #endif

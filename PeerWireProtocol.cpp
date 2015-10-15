@@ -1,7 +1,7 @@
 #include "PeerWireProtocol.hpp"
 
 bool PeerClient::createPeerConnection() {
-	asio::connect(socket, endpoint_iterator);
+	boost::asio::connect(socket, endpoint_iterator);
 	initHandshakeMessage();
 	sendHandshake();
 	handleNetworking();
@@ -24,8 +24,8 @@ void PeerClient::initHandshakeMessage() {
 
 void PeerClient::sendHandshake() {
 	try {
-		asio::error_code error;
-		asio::write(socket, asio::buffer(handshake), error);
+		boost::system::error_code error;
+		boost::asio::write(socket, boost::asio::buffer(handshake), error);
 	}
 	catch (std::exception& e) {
 		std::cerr << e.what() << std::endl;
@@ -34,14 +34,14 @@ void PeerClient::sendHandshake() {
 	keepAlive();
 }
 
-size_t PeerClient::networkRead(std::array<std::uint8_t, NETWORK_BUFFER_SIZE> &buf, asio::error_code &error) {
-	return socket.read_some(asio::buffer(buf), error);
+size_t PeerClient::networkRead(std::array<std::uint8_t, NETWORK_BUFFER_SIZE> &buf, boost::system::error_code &error) {
+	return socket.read_some(boost::asio::buffer(buf), error);
 }
 
 void PeerClient::handleNetworking() {
 	try{
 		std::array<std::uint8_t, NETWORK_BUFFER_SIZE> buf;
-		asio::error_code error;
+		boost::system::error_code error;
 		size_t len;
 		
 		while(true) {
@@ -55,10 +55,10 @@ void PeerClient::handleNetworking() {
 				break;
 			}
 			
-			if (error == asio::error::eof)
+			if (error == boost::asio::error::eof)
 				break; // Connection closed cleanly by peer.
 			else if (error)
-				throw asio::system_error(error); // Some other error.
+				throw boost::system::system_error(error); // Some other error.
 
 			len = future.get();
 			int processStatus = processNetworkData(buf, len);
@@ -101,7 +101,7 @@ int PeerClient::processCommand() {
 	for(int i=MESSAGE_OVERHEAD_LENGTH; i < totalCommandLength; i++)
 		commandBuffer.payload.push_back(networkBuffer[i]);
 		
-	int messageStatus = processMessage();
+	int messageStatus = processMessage(messageId, commandBuffer.payload);
 	if(messageStatus != PROCESS_READY)
 		return messageStatus;
 	
@@ -131,7 +131,7 @@ int PeerClient::processNetworkData(std::array<std::uint8_t, NETWORK_BUFFER_SIZE>
 	return PROCESS_READY;
 }
 
-int PeerClient::processMessage(std::uint8_t messageId, std::uint8_t *data, int payloadSize) {
+int PeerClient::processMessage(std::uint8_t messageId, std::vector<uint8_t> payload) {
 	switch(messageId) {
 		case mId.choke:
 			choke();
@@ -146,22 +146,22 @@ int PeerClient::processMessage(std::uint8_t messageId, std::uint8_t *data, int p
 			notInterested();
 			break;
 		case mId.have:
-			have(data, payloadSize);
+			have(data);
 			break;
 		case mId.bitfield:
-			bitfield(data, payloadSize);
+			bitfield(data);
 			break;
 		case mId.request:
-			request(data, payloadSize);
+			request(data);
 			break;
 		case mId.piece:
-			piece(data, payloadSize);
+			piece(data);
 			break;
 		case mId.cancel:
-			cancel(data, payloadSize);
+			cancel(data);
 			break;
 		case mId.port:
-			port(data, payloadSize);
+			port(data);
 			break;
 		default:
 			return PROCESS_DROP_PEER_INVALID_MESSAGE;

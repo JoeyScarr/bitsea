@@ -24,13 +24,23 @@ Tracker::~Tracker() {
 	curl_easy_cleanup(curlHandler);
 }
 
-void Tracker::update() {
+std::string& Tracker::getPeerId() {
+	return parametersSent.peer_id;
+}
+
+void Tracker::refresh() {
 	constructRequest();
-	std::cout << "Request: " << getRequest << std::endl;
+	std::cout << "Tracker Request: " << getRequest << std::endl;
 	sendRequest();
 	
-	std::cout << "Tracker response: " << trackerRawResponse << std::endl;
-	//getResponse();
+	//std::cout << "Tracker Response: " << trackerRawResponse << std::endl;
+	getResponse();
+}
+
+void Tracker::updateStats(unsigned int downloaded, unsigned int uploaded, unsigned int left) {
+	parametersSent.uploaded = uploaded;
+	parametersSent.downloaded = downloaded;
+	parametersSent.left = left;
 }
 
 std::string Tracker::urlEncode(std::string string) {
@@ -51,8 +61,7 @@ void Tracker::constructRequest() {
 	setParameter(std::string("port"), std::to_string(parametersSent.port));
 	setParameter(std::string("uploaded"), std::to_string(parametersSent.uploaded));
 	setParameter(std::string("downloaded"), std::to_string(parametersSent.downloaded));
-	//setParameter(std::string("left"), std::to_string(parametersSent.left));
-	setParameter(std::string("left"), std::to_string(5000));
+	setParameter(std::string("left"), std::to_string(parametersSent.left));
 
 	if(parametersSent.key.compare("") != 0)
 		setParameter(std::string("key"), parametersSent.key);
@@ -72,10 +81,10 @@ void Tracker::constructRequest() {
 	if(trackerID.compare("") != 0)
 		setParameter(std::string("trackerid"), trackerID);
 		
-	//if(parametersSent.sendEvent) {
-		//setParameter(std::string("event"), parametersSent.event);
-		//parametersSent.sendEvent = false;
-	//}
+	if(parametersSent.sendEvent) {
+		setParameter(std::string("event"), parametersSent.event);
+		parametersSent.sendEvent = false;
+	}
 	
 }
 
@@ -140,12 +149,8 @@ void Tracker::setNoPeerID(unsigned int noPeerID) {
 void Tracker::setEvent(std::string event) {
 	if(event.compare("started") == 0 || event.compare("stopped") == 0 || event.compare("completed") == 0) {
 		parametersSent.event = event;
-	}
-	else {
-		return;
-	}
-	
-	parametersSent.sendEvent = true;
+		parametersSent.sendEvent = true;
+	}	
 }
 
 void Tracker::setNumWant(unsigned int numwant) {
@@ -257,8 +262,19 @@ void Tracker::processPeerString() {
 		Tracker::Peer currentPeer;
 		const char *ipString = peerString.substr(6*i, 4).c_str();
 		const char *portString = peerString.substr(6*i+4, 2).c_str();
-		currentPeer.ip = ntohl(*ipString);
-		currentPeer.port = ntohs(*portString);
+		std::uint8_t iparray[4];
+		iparray[0] = peerString[6*i];
+		iparray[1] = peerString[6*i+1];
+		iparray[2] = peerString[6*i+2];
+		iparray[3] = peerString[6*i+3];
+		in_addr addy;
+		addy.s_addr = *((std::uint32_t *) iparray);
+		currentPeer.ip = inet_ntoa(addy);
+		std::uint8_t portarray[2];
+		portarray[0] = peerString[6*i+4];
+		portarray[1] = peerString[6*i+5];
+		currentPeer.port = *((std::uint16_t *)portarray);
+		currentPeer.port = ntohs(currentPeer.port);
 		currentPeer.peer_id = "";
 		parametersReceived.peerList.push_back(currentPeer);
 	}
@@ -285,9 +301,8 @@ void Tracker::processPeerDictionary() {
 			exit(1);
 		}
 		
-		std::string ipString;
 		try {
-			ipString = BDecoder::get<std::string>(dict, "ip");
+			currentPeer.ip = BDecoder::get<std::string>(dict, "ip");
 		}
 		catch(int e) {
 			std::cerr << "No ip received.\n";
@@ -302,9 +317,6 @@ void Tracker::processPeerDictionary() {
 			exit(1);
 		}
 		
-		struct sockaddr_in sa;
-		inet_pton(AF_INET, ipString.c_str(), &(sa.sin_addr));
-		currentPeer.ip = ntohl(sa.sin_addr.s_addr);
 		parametersReceived.peerList.push_back(currentPeer);
 	}
 }
@@ -392,4 +404,8 @@ void Tracker::getScrapeResponse() {
 		}
 		
 	} catch(int e) {}
+}
+
+std::vector<Tracker::Peer> Tracker::getPeers() {
+	return parametersReceived.peerList;
 }

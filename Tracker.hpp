@@ -1,7 +1,7 @@
 #ifndef TRACKER_HPP
 #define TRACKER_HPP
 
-#include "BitSea.hpp"
+#include "Version.hpp"
 #include "Bencoding.hpp"
 #include <curlpp/cURLpp.hpp>
 #include <curlpp/Easy.hpp>
@@ -20,16 +20,36 @@
 #include <arpa/inet.h>
 
 class Tracker {
+public:
+	struct Peer {
+		std::string peer_id;
+		std::string ip;
+		std::uint16_t port;
+	};
+
+	Tracker(std::string &url, std::string &infoHash);
+	~Tracker();
+
+	std::string urlEncode(std::string string);
+	void setPort(unsigned int port);
+	void setUploaded(unsigned int uploaded);
+	void setDownloaded(unsigned int downloaded);
+	void setLeft(unsigned int left);
+	void setCompact(unsigned int compact);
+	void setNoPeerID(unsigned int noPeerID);
+	void setEvent(std::string event);
+	void setNumWant(unsigned int numwant);
+	void setKey(std::string key);
+	void setTrackerID(std::string ID);
+	void refresh();
+	void updateStats(unsigned int downloaded, unsigned int uploaded, unsigned int left);
+	std::vector<Peer> getPeers();
+	std::string& getPeerId();
+
 private:
 	static const int DEFAULT_PORT = 6881;
 	static const int DEFAULT_COMPACT = 1;
 	static const int DEFAULT_NO_PEER_ID = 0;
-	
-	struct Peer {
-	std::string peer_id;
-	std::uint32_t ip;
-	std::uint16_t port;
-};
 	
 	struct GetRequestParameters {
 	std::string url;
@@ -79,35 +99,19 @@ private:
 	
 	std::string trackerID;
 	int interval;
-	
+
+	void setParameter(std::string param, std::string value);
 	void setPeerID();
 	void setIP();
-	void getPeers(int peerType);
 	void processPeerString();
 	void processPeerDictionary();
-
-public:
-	Tracker(std::string &url, std::string &infoHash);
-	~Tracker();
 	void constructRequest();
 	bool constructScrapeRequest();
 	bool constructScrapeRequest(std::string &hash);
 	void sendRequest();
 	void getResponse();
 	void getScrapeResponse();
-	void setParameter(std::string param, std::string value);
-	std::string urlEncode(std::string string);
-	void setPort(unsigned int port);
-	void setUploaded(unsigned int uploaded);
-	void setDownloaded(unsigned int downloaded);
-	void setLeft(unsigned int left);
-	void setCompact(unsigned int compact);
-	void setNoPeerID(unsigned int noPeerID);
-	void setEvent(std::string event);
-	void setNumWant(unsigned int numwant);
-	void setKey(std::string key);
-	void setTrackerID(std::string ID);
-	void update();
 };
+
 
 #endif

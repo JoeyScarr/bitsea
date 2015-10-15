@@ -3,9 +3,14 @@
 
 void cli::parseCommandLine(const int argc, char *argv[], Settings &programSettings) {
 	
-	int commandList[argc];
+	if(argc < 2) {
+		std::cerr << "Not enough arguments." << std::endl;
+		std::exit(1);
+	}
 	
+	int commandList[argc];
 	int commandCount = 0;
+	
 	for(int i=1; i < argc; i++) {
 		if(argv[i][0] == '-') {
 			commandList[commandCount] = i;
