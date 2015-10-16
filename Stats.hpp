@@ -5,6 +5,7 @@ struct TorrentStats {
 	unsigned int downloaded;
 	unsigned int uploaded;
 	unsigned int left;
+	unsigned int numberOfPieces;
 };
 
 

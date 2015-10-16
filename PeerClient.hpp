@@ -55,6 +55,7 @@ private:
 
 	struct PeerInfo {
 		std::string handshake;
+		std::vector<bool> pieceAvailable;
 	} peerStatus;
 
 	struct Command {
@@ -62,7 +63,7 @@ private:
 		std::uint32_t length;
 		std::vector<uint8_t> payload;
 	} commandBuffer;
-
+	
 	std::vector<std::uint8_t> processingBuffer;
 	std::uint8_t networkBuffer[NETWORK_BUFFER_SIZE];
 	int readBufferSize;
@@ -89,10 +90,17 @@ private:
 	void unchoke();
 	void interested();
 	void notInterested();
+	void decodeBitfield(std::vector<uint8_t> &data);
+	std::vector<std::uint8_t> encodeBitfield();
+	
 	void readHandler(const boost::system::error_code& error, std::size_t bytes_transferred);
 	void processCommand();
 	int processMessage(std::uint8_t messageId, std::vector<uint8_t> &payload);
-	
+	void cancel(std::vector<uint8_t> &payload);
+	void recvPort(std::vector<uint8_t> &payload);
+	void recvHave(std::vector<uint8_t> &payload);
+	void recvRequest(std::vector<uint8_t> &payload);
+	void recvPiece(std::vector<uint8_t> &payload);
 	
 public:
 	PeerClient(boost::shared_ptr<boost::asio::io_service> io_service, Tracker::Peer peerAddress, TorrentStats &stats, std::string &infoHash, std::string peerId) {
@@ -110,6 +118,9 @@ public:
 		commandLength = 0;
 		commandBuffer.payload.reserve(COMMAND_BUFFER_SIZE);
 		processingBuffer.reserve(COMMAND_BUFFER_SIZE);
+		peerStatus.pieceAvailable.reserve(stats.numberOfPieces);
+		for(int i=0; i < stats.numberOfPieces; i++)
+			peerStatus.pieceAvailable.push_back(false);
 	}
 
 	void launch();

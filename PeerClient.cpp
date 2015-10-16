@@ -195,30 +195,71 @@ int PeerClient::processMessage(std::uint8_t messageId, std::vector<uint8_t> &pay
 		case mId.notInterested:
 			notInterested();
 			break;
-		//case mId.have:
-			//have(data);
-			//break;
-		//case mId.bitfield:
-			//bitfield(data);
-			//break;
-		//case mId.request:
-			//request(data);
-			//break;
-		//case mId.piece:
-			//piece(data);
-			//break;
-		//case mId.cancel:
-			//cancel(data);
-			//break;
-		//case mId.port:
-			//port(data);
-			//break;
+		case mId.have:
+			recvHave(payload);
+			break;
+		case mId.bitfield:
+			decodeBitfield(payload);
+			break;
+		case mId.request:
+			recvRequest(payload);
+			break;
+		case mId.piece:
+			recvPiece(payload);
+			break;
+		case mId.cancel:
+			cancel(payload);
+			break;
+		case mId.port:
+			recvPort(payload);
+			break;
 		default:
 			return PROCESS_DROP_PEER_INVALID_MESSAGE;
 	}
 	return PROCESS_SUCCESS;
 }
 
+void PeerClient::decodeBitfield(std::vector<uint8_t> &data) {
+	std::uint8_t mask = 0b10000000;
+	int numPieces = peerStatus.pieceAvailable.size();
+	for(int i=0; i < data.size(); i++) {
+		for(int j=0; j < 8; j++) {
+			std::uint8_t comparisonMask = mask >> j;
+			std::uint8_t status = comparisonMask & data[j];
+			
+			int index = 8*i+j;
+			if(status != 0 && index < numPieces) {
+				peerStatus.pieceAvailable[index] = true;
+			}
+		}
+	}
+}
+
+std::vector<std::uint8_t> PeerClient::encodeBitfield() {
+	int numPieces = peerStatus.pieceAvailable.size();
+	int numBytes = numPieces >> 3;
+	if(numPieces % 8 != 0)
+		numBytes++;
+		
+	std::vector<std::uint8_t> bitfield;
+	bitfield.reserve(numBytes);
+	for(int i=0; i<numBytes; i++)
+		bitfield.push_back(0);
+	
+	std::uint8_t mask = 0b10000000;
+	for(int i=0; i<numBytes; i++) {
+		for(int j=0; i < 8; i++) {
+			int index = 8*i+j;		
+			if(index < numPieces) {
+				if(peerStatus.pieceAvailable[index]) {
+					int newMask = mask >> j;
+					bitfield[i] = bitfield[i] | newMask;
+				}
+			}	
+		}			
+	}
+	return bitfield;
+}
 
 void PeerClient::choke() {
 	status.choked = true;
@@ -234,6 +275,52 @@ void PeerClient::interested() {
 
 void PeerClient::notInterested() {
 	status.interested = false;
+}
+
+void PeerClient::recvHave(std::vector<uint8_t> &payload) {
+	if(payload.size() != 4)
+		return;
+		
+	std::uint8_t pieceIndexArray[4];
+	for(int i=0; i < 4; i++) {
+		pieceIndexArray[i] = payload[i];
+	}
+	
+	std::uint32_t index = *((std::uint32_t *) pieceIndexArray);
+	index = ntohl(index);
+	if(index < peerStatus.pieceAvailable.size())
+		peerStatus.pieceAvailable[index] = true;
+	else {
+		// this is an invalid piece. do we deal with it?
+	}
+}
+
+void PeerClient::recvRequest(std::vector<uint8_t> &payload) {
+	
+}
+
+void PeerClient::recvPiece(std::vector<uint8_t> &payload) {
+
+}
+
+void PeerClient::cancel(std::vector<uint8_t> &payload) {
+	std::uint8_t pieceIndexArray[4];
+	std::uint8_t blockOffset[4];
+	std::uint8_t blockLength[4];
+	
+	for(int i=0; i<4; i++) {
+		pieceIndexArray[i] = payload[i];
+		blockOffset[i] = payload[4+i];
+		blockLength[i] = blockLength[8+i];
+	}
+	
+	// cast these arrays to ints and do something with this info later
+	// when we have job queue.
+	
+}
+
+void PeerClient::recvPort(std::vector<uint8_t> &payload) {
+	// Do nothing. We're not implementing DHT right now.
 }
 
 void PeerClient::keepAlive() {

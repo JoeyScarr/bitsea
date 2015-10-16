@@ -17,7 +17,7 @@ int main(int argc, char *argv[]) {
 	cli::parseCommandLine(argc, argv, programSettings);
 	TorrentFileParser torrentInfo(programSettings.fileName);	
 	fileList = allocateStorage(torrentInfo, tStats);
-	initPieceDatabase(torrentInfo, pieces);
+	initPieceDatabase(torrentInfo, pieces, tStats);
 	
 	boost::shared_ptr<Tracker> trackMan = initTracker(torrentInfo, tStats);
 	
@@ -36,7 +36,7 @@ int main(int argc, char *argv[]) {
 	return 0;
 }
 
-void initPieceDatabase(TorrentFileParser &torrentInfo, std::vector<Piece> &pieces) {
+void initPieceDatabase(TorrentFileParser &torrentInfo, std::vector<Piece> &pieces, TorrentStats &stats) {
 	std::vector<std::string> pieceHashes=torrentInfo.info.getPieces();
 	for(std::vector<std::string>::iterator it = pieceHashes.begin(); it != pieceHashes.end(); it++) {
 		Piece piece;
@@ -44,6 +44,7 @@ void initPieceDatabase(TorrentFileParser &torrentInfo, std::vector<Piece> &piece
 		piece.have = false;
 		pieces.push_back(piece);
 	}
+	stats.numberOfPieces = pieces.size();
 }
 
 void talkToPeer(boost::shared_ptr<boost::asio::io_service> io_service, Tracker::Peer peerAddress, TorrentStats &stats, TorrentFileParser &torrentInfo, std::string peerId) {

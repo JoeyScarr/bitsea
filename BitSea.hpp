@@ -33,6 +33,6 @@ void WorkerThread(boost::shared_ptr<boost::asio::io_service> io_service);
 void startTrackerUpdater(boost::shared_ptr<boost::asio::io_service> io_service, boost::shared_ptr<Tracker> trackerManager);
 boost::shared_ptr<Tracker> initTracker(TorrentFileParser &torrentInfo, TorrentStats &stats);
 void talkToPeer(boost::shared_ptr<boost::asio::io_service> io_service, Tracker::Peer peerAddress, TorrentStats &stats, TorrentFileParser &torrentInfo, std::string peerId);
-void initPieceDatabase(TorrentFileParser &torrentInfo, std::vector<Piece> &pieces);
+void initPieceDatabase(TorrentFileParser &torrentInfo, std::vector<Piece> &pieces, TorrentStats &stats);
 
 #endif
