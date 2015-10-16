@@ -33,14 +33,14 @@ private:
 		static const uint8_t port = 9;
 	} mId;
 
-	static const int NETWORK_BUFFER_SIZE = 1024;
+	static const int COMMAND_BUFFER_SIZE = 131072;
+	static const int NETWORK_BUFFER_SIZE = 2048;
 	static const int CONNECTION_TIMEOUT_LIMIT = 120;
 	static const int MESSAGE_OVERHEAD_LENGTH = 5;
+	static const int LENGTH_PREFIX_SIZE = 4;
 	static const int MESSAGE_ID_POSITION = 3;
 	static const int HANDSHAKE_LENGTH = 8;
-	static const int COMMAND_READY = 0;
-	static const int PROCESS_GET_MORE_DATA = 1;
-	static const int PROCESS_READY = 0;
+	static const int PROCESS_SUCCESS = 0;
 	static const int PROCESS_DROP_PEER_INVALID_MESSAGE = 2;
 	
 	struct Status {
@@ -59,11 +59,12 @@ private:
 
 	struct Command {
 		std::uint8_t messageId;
-		int length;
+		std::uint32_t length;
 		std::vector<uint8_t> payload;
 	} commandBuffer;
 
-	std::vector<uint8_t> networkBuffer;
+	std::vector<std::uint8_t> processingBuffer;
+	std::uint8_t networkBuffer[NETWORK_BUFFER_SIZE];
 	int readBufferSize;
 	std::string sendBuffer;
 	std::string handshake;
@@ -75,14 +76,23 @@ private:
 	std::string infoHash;
 	std::string peerId;
 	
+	bool processingCommand;
+	int commandLength;
+	
 	void onConnect(const boost::system::error_code &ec, boost::shared_ptr<boost::asio::ip::tcp::socket> sock);
 	void initHandshakeMessage();
 	void sendHandshake(boost::shared_ptr<boost::asio::ip::tcp::socket> sock);
 	bool readHandshake(boost::shared_ptr<boost::asio::ip::tcp::socket> sock);
-	bool verifyHandshake(std::uint8_t *buffer);
+	bool verifyHandshake();
 	void keepAlive();
+	void choke();
+	void unchoke();
+	void interested();
+	void notInterested();
 	void readHandler(const boost::system::error_code& error, std::size_t bytes_transferred);
-
+	void processCommand();
+	int processMessage(std::uint8_t messageId, std::vector<uint8_t> &payload);
+	
 	
 public:
 	PeerClient(boost::shared_ptr<boost::asio::io_service> io_service, Tracker::Peer peerAddress, TorrentStats &stats, std::string &infoHash, std::string peerId) {
@@ -96,6 +106,10 @@ public:
 		status.peer_choking = 1;
 		status.peer_interested = 0;
 		readBufferSize = 0;
+		processingCommand = false;
+		commandLength = 0;
+		commandBuffer.payload.reserve(COMMAND_BUFFER_SIZE);
+		processingBuffer.reserve(COMMAND_BUFFER_SIZE);
 	}
 
 	void launch();
