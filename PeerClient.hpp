@@ -16,8 +16,6 @@
 #include "Tracker.hpp"
 #include "Stats.hpp"
 
-extern boost::mutex global_stream_lock;
-
 class PeerClient {
 private:
 	static const struct MessageId {
@@ -76,9 +74,15 @@ private:
 	std::string port;
 	std::string infoHash;
 	std::string peerId;
+	int peerIndex;
 	
 	bool processingCommand;
 	int commandLength;
+	
+	std::vector<Piece> pieces;
+		
+	boost::mutex *global_stream_lock;
+	boost::mutex *global_piece_lock;
 	
 	void onConnect(const boost::system::error_code &ec, boost::shared_ptr<boost::asio::ip::tcp::socket> sock);
 	void initHandshakeMessage();
@@ -101,14 +105,19 @@ private:
 	void recvHave(std::vector<uint8_t> &payload);
 	void recvRequest(std::vector<uint8_t> &payload);
 	void recvPiece(std::vector<uint8_t> &payload);
+	void updatePieceInfo(int pieceIndex);
 	
 public:
-	PeerClient(boost::shared_ptr<boost::asio::io_service> io_service, Tracker::Peer peerAddress, TorrentStats &stats, std::string &infoHash, std::string peerId) {
+	PeerClient(boost::shared_ptr<boost::asio::io_service> io_service, Tracker::Peer peerAddress, TorrentStats &stats, std::string infoHash, std::string peerId, int peerIndex, std::vector<Piece> pieces, boost::mutex *global_stream_lock, boost::mutex *global_piece_lock) {
 		this->io_service = io_service;
 		this->ip = peerAddress.ip;
 		this->port = std::to_string(peerAddress.port);
 		this->infoHash = infoHash;
 		this->peerId = peerId;
+		this->global_stream_lock = global_stream_lock;
+		this->peerIndex = peerIndex;
+		this->global_piece_lock	= global_piece_lock;
+		this->pieces = pieces;
 		status.am_choking = 1;
 		status.am_interested = 0;
 		status.peer_choking = 1;

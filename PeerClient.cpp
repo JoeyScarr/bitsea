@@ -8,17 +8,17 @@ void PeerClient::launch() {
 		boost::asio::ip::tcp::resolver::iterator iterator = resolver.resolve(query);
 		boost::asio::ip::tcp::endpoint endpoint = *iterator;
 
-		global_stream_lock.lock();
+		global_stream_lock->lock();
 		std::cout << "Connecting to: " << endpoint << std::endl;
-		global_stream_lock.unlock();
+		global_stream_lock->unlock();
 
 		sock->async_connect(endpoint, boost::bind(&PeerClient::onConnect, this, _1, sock));
 	}
 	catch(std::exception &ex) {
-		global_stream_lock.lock();
+		global_stream_lock->lock();
 		std::cout << "[" << boost::this_thread::get_id()
 			<< "] Exception: " << ex.what() << std::endl;
-		global_stream_lock.unlock();
+		global_stream_lock->unlock();
 	}
 
 	//boost::system::error_code ec;
@@ -29,10 +29,10 @@ void PeerClient::launch() {
 
 void PeerClient::onConnect(const boost::system::error_code &ec, boost::shared_ptr<boost::asio::ip::tcp::socket> sock) {
 	if(ec) {
-		global_stream_lock.lock();
+		global_stream_lock->lock();
 		std::cout << "[" << boost::this_thread::get_id()
 			<< "] Error: " << ec << std::endl;
-		global_stream_lock.unlock();
+		global_stream_lock->unlock();
 	}
 	else {
 		initHandshakeMessage();
@@ -230,6 +230,7 @@ void PeerClient::decodeBitfield(std::vector<uint8_t> &data) {
 			int index = 8*i+j;
 			if(status != 0 && index < numPieces) {
 				peerStatus.pieceAvailable[index] = true;
+				updatePieceInfo(index);
 			}
 		}
 	}
@@ -288,19 +289,25 @@ void PeerClient::recvHave(std::vector<uint8_t> &payload) {
 	
 	std::uint32_t index = *((std::uint32_t *) pieceIndexArray);
 	index = ntohl(index);
-	if(index < peerStatus.pieceAvailable.size())
+	if(index < peerStatus.pieceAvailable.size() && !peerStatus.pieceAvailable[index]) {
 		peerStatus.pieceAvailable[index] = true;
+		updatePieceInfo(index);
+	}
 	else {
 		// this is an invalid piece. do we deal with it?
 	}
 }
 
 void PeerClient::recvRequest(std::vector<uint8_t> &payload) {
-	
+	// if we have the piece, and we are not over our upload cap, then
+	// send that piece.
 }
 
 void PeerClient::recvPiece(std::vector<uint8_t> &payload) {
-
+	// check that this is something we requested.
+	// check SHA-1 on it.
+	// save piece to file.
+	// acknowledge successful receipt.
 }
 
 void PeerClient::cancel(std::vector<uint8_t> &payload) {
@@ -324,4 +331,11 @@ void PeerClient::recvPort(std::vector<uint8_t> &payload) {
 }
 
 void PeerClient::keepAlive() {
+}
+
+void PeerClient::updatePieceInfo(int index) {
+	global_piece_lock->lock();
+	pieces[index].have = true;
+	pieces[index].peers.push_back(peerId);
+	global_piece_lock->unlock();
 }

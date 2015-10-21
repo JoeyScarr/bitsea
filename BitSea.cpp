@@ -2,84 +2,76 @@
 
 
 int main(int argc, char *argv[]) {
-	boost::shared_ptr<boost::asio::io_service> io_service(new boost::asio::io_service);
-	boost::shared_ptr<boost::asio::io_service::work> work(new boost::asio::io_service::work(*io_service));
-	boost::thread_group worker_threads;
+	BitSea bitsea(argc, argv);
+	bitsea.run();
 	
-	cli::Settings programSettings;
-	std::vector<Piece> pieces;
-	std::vector<std::pair<std::string, int>> fileList;
-	TorrentStats tStats;
-	tStats.downloaded = 0;
-	tStats.uploaded = 0;
-	tStats.left = 0;
-		
-	cli::parseCommandLine(argc, argv, programSettings);
-	TorrentFileParser torrentInfo(programSettings.fileName);	
-	fileList = allocateStorage(torrentInfo, tStats);
-	initPieceDatabase(torrentInfo, pieces, tStats);
-	
-	boost::shared_ptr<Tracker> trackMan = initTracker(torrentInfo, tStats);
-	
-	for(int i=0; i < THREAD_MAX; i++)
-		worker_threads.create_thread(boost::bind(&WorkerThread, io_service));
-	
-	startTrackerUpdater(io_service, trackMan);
-	std::vector<Tracker::Peer> peerList = trackMan->getPeers();
-	
-	for(int i=0; i < peerList.size(); i++)
-		talkToPeer(io_service, peerList[i], tStats, torrentInfo, trackMan->getPeerId());
-	
-	//io_service->stop();
-    worker_threads.join_all();
-
 	return 0;
 }
 
-void initPieceDatabase(TorrentFileParser &torrentInfo, std::vector<Piece> &pieces, TorrentStats &stats) {
-	std::vector<std::string> pieceHashes=torrentInfo.info.getPieces();
+void BitSea::run() {
+	fileList = allocateStorage();
+	initPieceDatabase();
+	boost::shared_ptr<Tracker> trackMan = initTracker();
+	
+	for(int i=0; i < THREAD_MAX; i++)
+		worker_threads.create_thread(boost::bind(&BitSea::WorkerThread, this, io_service));
+	
+	startTrackerUpdater(io_service, trackMan);
+	peerList = trackMan->getPeers();
+	for(int i=0; i < peerList.size(); i++) {
+		std::pair<std::string, int> peerPair(peerList[i].peer_id, i);
+		peerResolver.insert(peerPair);
+		talkToPeer(peerList[i], trackMan->getPeerId(), i);
+	}
+    worker_threads.join_all();
+}
+
+void BitSea::initPieceDatabase() {
+	std::vector<std::string> pieceHashes=torrentInfo->info.getPieces();
 	for(std::vector<std::string>::iterator it = pieceHashes.begin(); it != pieceHashes.end(); it++) {
 		Piece piece;
 		piece.hash = *it;
 		piece.have = false;
 		pieces.push_back(piece);
 	}
-	stats.numberOfPieces = pieces.size();
+	tStats.numberOfPieces = pieces.size();
 }
 
-void talkToPeer(boost::shared_ptr<boost::asio::io_service> io_service, Tracker::Peer peerAddress, TorrentStats &stats, TorrentFileParser &torrentInfo, std::string peerId) {
-	std::string infoHash = torrentInfo.info.getHash();
-	PeerClient peer(io_service, peerAddress, stats, infoHash, peerId);
-	peer.launch();
+void BitSea::talkToPeer(Tracker::Peer peerAddress, std::string peerId, int index) {
+	std::string infoHash = torrentInfo->info.getHash();
+	PeerAccess newPeer;
+	newPeer.peer = std::make_shared<PeerClient>(PeerClient(io_service, peerAddress, tStats, torrentInfo->info.getHash(), peerId, index, pieces, &global_stream_lock, &global_piece_lock));
+	peerDb.push_back(newPeer);
+	newPeer.peer->launch();
 }
 
-boost::shared_ptr<Tracker> initTracker(TorrentFileParser &torrentInfo, TorrentStats &stats) {
-	std::string announceUrl = torrentInfo.getAnnounce();
-	std::string infoHash = torrentInfo.info.getHash();
+boost::shared_ptr<Tracker> BitSea::initTracker() {
+	std::string announceUrl = torrentInfo->getAnnounce();
+	std::string infoHash = torrentInfo->info.getHash();
 	boost::shared_ptr<Tracker> trackMan(new Tracker(announceUrl, infoHash));
-	trackMan->updateStats(stats.downloaded, stats.uploaded, stats.left);
+	trackMan->updateStats(tStats.downloaded, tStats.uploaded, tStats.left);
 	trackMan->refresh();
 	return trackMan;
 }
 
-void startTrackerUpdater(boost::shared_ptr<boost::asio::io_service> io_service, boost::shared_ptr<Tracker> trackerManager) {
+void BitSea::startTrackerUpdater(boost::shared_ptr<boost::asio::io_service> io_service, boost::shared_ptr<Tracker> trackerManager) {
 	boost::shared_ptr<boost::asio::deadline_timer> timer(new boost::asio::deadline_timer(*io_service));
 	timer->expires_from_now(boost::posix_time::minutes(30));
-	timer->async_wait(boost::bind(&trackerUpdateHandler, _1, timer, trackerManager));
+	timer->async_wait(boost::bind(&BitSea::trackerUpdateHandler, this, _1, timer, trackerManager));
 }
 
-std::vector<std::pair<std::string, int>> allocateStorage(TorrentFileParser &torrentInfo, TorrentStats &stats) {
-	int mode = torrentInfo.info.getFileMode();
+std::vector<std::pair<std::string, int>> BitSea::allocateStorage() {
+	int mode = torrentInfo->info.getFileMode();
 	std::vector<std::pair<std::string, int>> files;
 
 	if(mode == InfoParser::FILEMODE_SINGLE) {
-		std::string fileName = torrentInfo.info.getName();
-		int length = torrentInfo.info.getLength();
-		std::string md5 = torrentInfo.info.getMD5();
+		std::string fileName = torrentInfo->info.getName();
+		int length = torrentInfo->info.getLength();
+		std::string md5 = torrentInfo->info.getMD5();
 		files.push_back(std::make_pair(fileName, length));
 	}
 	else {
-		for(boost::any file : torrentInfo.info.files) {
+		for(boost::any file : torrentInfo->info.files) {
 			std::unordered_map<std::string, boost::any> dict = boost::any_cast<std::unordered_map<std::string, boost::any>>(file);
 			int length = InfoParser::fileLength(dict);
 			std::string fileName = InfoParser::filePath(dict);
@@ -91,14 +83,14 @@ std::vector<std::pair<std::string, int>> allocateStorage(TorrentFileParser &torr
 	for(std::vector<std::pair<std::string, int>>::iterator it=files.begin(); it != files.end(); it++) {
 		std::string fileName = it->first;
 		int length = it->second;
-		stats.left += length;
+		tStats.left += length;
 		createFile(fileName, length);
 	}
 	
 	return files;
 }
 
-void createFile(std::string filePath, int size) {
+void BitSea::createFile(std::string filePath, int size) {
 	int pathLength = filePath.length();
 	int position = 0;
 	if(filePath[0] == '.' && filePath[1] == '/') {
@@ -118,38 +110,38 @@ void createFile(std::string filePath, int size) {
 	ofs.close();
 }
 
-void trackerUpdateHandler(const boost::system::error_code &error, boost::shared_ptr<boost::asio::deadline_timer> timer, boost::shared_ptr<Tracker> trackerManager) {
+void BitSea::trackerUpdateHandler(const boost::system::error_code &error, boost::shared_ptr<boost::asio::deadline_timer> timer, boost::shared_ptr<Tracker> trackerManager) {
 	if(error) {
-		global_stream_lock.lock();
+		this->global_stream_lock.lock();
 		std::cout << "[" << boost::this_thread::get_id()
 			<< "] Error: " << error << std::endl;
-		global_stream_lock.unlock();
+		this->global_stream_lock.unlock();
 	}
 	else {
 		trackerManager->refresh();
 		timer->expires_from_now( boost::posix_time::minutes( 30 ) );
-		timer->async_wait( boost::bind( &trackerUpdateHandler, _1, timer, trackerManager ) );
+		timer->async_wait( boost::bind( &BitSea::trackerUpdateHandler, this, _1, timer, trackerManager ) );
 	}
 }
 
-void WorkerThread(boost::shared_ptr<boost::asio::io_service> io_service) {
+void BitSea::WorkerThread(boost::shared_ptr<boost::asio::io_service> io_service) {
 	while(true) {
 		try {
 			boost::system::error_code ec;
 			io_service->run(ec);
 			if(ec) {
-				global_stream_lock.lock();
+				this->global_stream_lock.lock();
 				std::cout << "[" << boost::this_thread::get_id()
 						<< "] Error: " << ec << std::endl;
-				global_stream_lock.unlock();
+				this->global_stream_lock.unlock();
 			}
 			break;
 		}
 		catch(std::exception & ex) {
-			global_stream_lock.lock();
+			this->global_stream_lock.lock();
 			std::cout << "[" << boost::this_thread::get_id()
 					<< "] Exception: " << ex.what() << std::endl;
-			global_stream_lock.unlock();
+			this->global_stream_lock.unlock();
 		}
 	}
 }

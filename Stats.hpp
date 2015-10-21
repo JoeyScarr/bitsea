@@ -8,5 +8,10 @@ struct TorrentStats {
 	unsigned int numberOfPieces;
 };
 
+struct Piece {
+	std::string hash;
+	bool have;
+	std::vector<std::string> peers;
+};
 
 #endif
