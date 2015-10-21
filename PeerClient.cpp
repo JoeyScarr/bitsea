@@ -94,11 +94,31 @@ bool PeerClient::readHandshake(boost::shared_ptr<boost::asio::ip::tcp::socket> s
 		return false;
 	} 
 
+	sendBitfield(sock);
+	
 	for(int i=handshakeSize; i < readBufferSize; i++) {
 		processingBuffer.push_back(networkBuffer[i]);
 	}
 	readBufferSize = processingBuffer.size();
 	return true;
+}
+
+void PeerClient::sendBitfield(boost::shared_ptr<boost::asio::ip::tcp::socket> sock) {
+	std::vector<std::uint8_t> bitfield = encodeBitfield();
+	int size = bitfield.size();
+	std::uint8_t buf[size];
+	
+	for(int i=0; i < size; i++) {
+		buf[i] = bitfield[i];
+	}
+	
+	try {
+		boost::system::error_code error;
+		boost::asio::write(*sock, boost::asio::buffer(buf, size), error);
+	}
+	catch (std::exception& e) {
+		std::cerr << e.what() << std::endl;
+	}
 }
 
 bool PeerClient::verifyHandshake() {

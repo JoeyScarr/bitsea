@@ -106,6 +106,7 @@ private:
 	void recvRequest(std::vector<uint8_t> &payload);
 	void recvPiece(std::vector<uint8_t> &payload);
 	void updatePieceInfo(int pieceIndex);
+	void sendBitfield(boost::shared_ptr<boost::asio::ip::tcp::socket> sock);
 	
 public:
 	PeerClient(boost::shared_ptr<boost::asio::io_service> io_service, Tracker::Peer peerAddress, TorrentStats &stats, std::string infoHash, std::string peerId, int peerIndex, std::vector<Piece> pieces, boost::mutex *global_stream_lock, boost::mutex *global_piece_lock) {
