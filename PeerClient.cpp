@@ -392,12 +392,33 @@ void PeerClient::recvPiece(std::vector<uint8_t> &payload) {
 	}
 	
 	if(payload.size() == PIECE_BLOCK_SIZE) {
-		// verify SHA1
-		// acknowledge sendHave if successful.
+		if(!verifyPieceShaHash()) {
+			global_stream_lock->lock();
+			std::cerr << "Sha sum failed.\n";
+			global_stream_lock->unlock();
+			shutdownSequence();
+		}
+		else {
+			// save data
+			// acknowledge sendHave if successful.
+		}
 	}
 	else {
 		// request next block.
 	}
+}
+
+bool PeerClient::verifyPieceShaHash() {
+	std::uint8_t hashString[SHA_DIGEST_LENGTH];
+	const std::uint8_t *pieceString = reinterpret_cast<const std::uint8_t*>(pieceBuffer.data());
+	unsigned long length = pieceBuffer.size();
+	SHA1( pieceString , length, hashString);
+	
+	for(int i=0; i<20; i++) {
+		if(hashString[i] != pieces[jobPiece].hash[i])
+			return false;
+	}
+	return true;
 }
 
 void PeerClient::recvCancel(std::vector<uint8_t> &payload) {

@@ -13,6 +13,7 @@
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/error.hpp>
 #include <boost/asio/write.hpp>
+#include <openssl/sha.h>
 #include "Tracker.hpp"
 #include "Stats.hpp"
 #include "BitSeaCallBack.hpp"
@@ -125,6 +126,7 @@ private:
 	void sendData(std::uint8_t *data, size_t size);
 	void requestPiece(int piece);
 	void shutdownSequence();
+	bool verifyPieceShaHash();
 	
 public:
 	PeerClient(BitSeaCallBack *callback, boost::shared_ptr<boost::asio::io_service> io_service, 
