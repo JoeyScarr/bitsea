@@ -10,14 +10,16 @@
 #include <boost/thread/mutex.hpp>
 #include <boost/bind.hpp>
 #include <unordered_map>
+#include <unordered_set>
 #include "CommandLineParser.hpp"
 #include "TorrentFileParser.hpp"
 #include "Tracker.hpp"
 #include "Version.hpp"
 #include "PeerClient.hpp"
 #include "Stats.hpp"
+#include "BitSeaCallBack.hpp"
 
-class BitSea {
+class BitSea : BitSeaCallBack {
 private:
 	struct PeerAccess {
 		std::shared_ptr<PeerClient> peer;
@@ -28,15 +30,19 @@ private:
 	boost::thread_group worker_threads;
 	cli::Settings programSettings;
 	std::vector<Piece> pieces;
+	std::unordered_set<int> piecesNeeded;
+	std::unordered_set<int> piecesAvailable;
+	
 	std::vector<std::pair<std::string, int>> fileList;
 	TorrentStats tStats;
 	TorrentFileParser *torrentInfo;
-	std::vector<PeerAccess> peerDb;
+	std::vector<PeerAccess> peerDb; // refactor later to use hash table
 	std::vector<Tracker::Peer> peerList;
 	std::unordered_map<std::string, int> peerResolver;
 	
 	boost::mutex global_stream_lock;
 	boost::mutex global_piece_lock;
+	boost::mutex global_taskman_lock;
 	
 	std::vector<std::pair<std::string, int>> allocateStorage();
 	void createFile(std::string path, int size);
@@ -47,6 +53,7 @@ private:
 	boost::shared_ptr<Tracker> initTracker();
 	void talkToPeer(Tracker::Peer peerAddress, std::string peerId, int index);
 	void initPieceDatabase();
+	void updateAvailablePieces();
 	
 public:
 	const int THREAD_MAX = 51;
@@ -61,6 +68,8 @@ public:
 	}
 	
 	void run();
+	void dropPeer(std::string peerId);
+	void taskManager();
 };
 
 

@@ -34,13 +34,20 @@ void BitSea::initPieceDatabase() {
 		piece.have = false;
 		pieces.push_back(piece);
 	}
+	
+	for(int i=0; i < pieces.size(); i++) {
+		if(pieces[i].have == false) {
+			piecesNeeded.insert(i);
+		}
+	}
+	
 	tStats.numberOfPieces = pieces.size();
 }
 
 void BitSea::talkToPeer(Tracker::Peer peerAddress, std::string peerId, int index) {
 	std::string infoHash = torrentInfo->info.getHash();
 	PeerAccess newPeer;
-	newPeer.peer = std::make_shared<PeerClient>(PeerClient(io_service, peerAddress, tStats, torrentInfo->info.getHash(), peerId, index, pieces, &global_stream_lock, &global_piece_lock));
+	newPeer.peer = std::make_shared<PeerClient>(PeerClient(this, io_service, peerAddress, tStats, torrentInfo->info.getHash(), peerId, index, pieces, &global_stream_lock, &global_piece_lock));
 	peerDb.push_back(newPeer);
 	newPeer.peer->launch();
 }
@@ -145,3 +152,36 @@ void BitSea::WorkerThread(boost::shared_ptr<boost::asio::io_service> io_service)
 		}
 	}
 }
+
+void BitSea::taskManager() {
+	global_taskman_lock.lock();
+	if(tStats.peerHandshakesComplete >= cli::PEER_THRESHHOLD) {
+		updateAvailablePieces();
+		// sort by availability? maybe implement later. for now just 
+		// grab whatever is available.
+		
+		// farm out work. tell peers to update choke/interested status.
+		// wait for them to acknowledge. then request piece we want.
+		// t
+	}
+	
+	global_taskman_lock.unlock();
+}
+
+void BitSea::dropPeer(std::string peerId) {
+	auto search = peerResolver.find(peerId);
+	if(search != peerResolver.end()) {
+		int peerIndex = search->second;
+		peerDb[peerIndex].peer = nullptr;
+		tStats.peerHandshakesComplete--;
+	}
+}
+
+void BitSea::updateAvailablePieces() {
+	for(std::unordered_set<int>::iterator it = piecesNeeded.begin(); it != piecesNeeded.end(); it++) {
+		if(pieces[*it].peers.size() != 0) {
+			piecesAvailable.insert(*it);
+		}
+	}
+}
+

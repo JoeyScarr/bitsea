@@ -19,12 +19,11 @@ void PeerClient::launch() {
 		std::cout << "[" << boost::this_thread::get_id()
 			<< "] Exception: " << ex.what() << std::endl;
 		global_stream_lock->unlock();
+		boost::system::error_code ec;
+		sock->shutdown(boost::asio::ip::tcp::socket::shutdown_both, ec);
+		sock->close(ec);
+		callback->dropPeer(peerId);
 	}
-
-	//boost::system::error_code ec;
-	//sock->shutdown( boost::asio::ip::tcp::socket::shutdown_both, ec );
-	//sock->close( ec );
-	
 }
 
 void PeerClient::onConnect(const boost::system::error_code &ec, boost::shared_ptr<boost::asio::ip::tcp::socket> sock) {
@@ -179,7 +178,7 @@ void PeerClient::readHandler(const boost::system::error_code& error, std::size_t
 		commandBuffer.length =*((std::uint32_t *)(networkBuffer));
 		if(commandBuffer.length == 0) {
 			processingBuffer.erase(processingBuffer.begin(), processingBuffer.begin()+4);
-			keepAlive();
+			recvKeepAlive();
 			return;
 		}
 		
@@ -204,16 +203,16 @@ void PeerClient::processCommand() {
 int PeerClient::processMessage(std::uint8_t messageId, std::vector<uint8_t> &payload) {
 	switch(messageId) {
 		case mId.choke:
-			choke();
+			recvChoke();
 			break;
 		case mId.unchoke:
-			unchoke();
+			recvUnchoke();
 			break;
 		case mId.interested:
-			interested();
+			recvInterested();
 			break;
 		case mId.notInterested:
-			notInterested();
+			recvNotInterested();
 			break;
 		case mId.have:
 			recvHave(payload);
@@ -228,7 +227,7 @@ int PeerClient::processMessage(std::uint8_t messageId, std::vector<uint8_t> &pay
 			recvPiece(payload);
 			break;
 		case mId.cancel:
-			cancel(payload);
+			recvCancel(payload);
 			break;
 		case mId.port:
 			recvPort(payload);
@@ -240,6 +239,16 @@ int PeerClient::processMessage(std::uint8_t messageId, std::vector<uint8_t> &pay
 }
 
 void PeerClient::decodeBitfield(std::vector<uint8_t> &data) {
+	if(bitfieldReceived) {
+		global_stream_lock->lock();
+		std::cerr << "Error: Peer " << peerId << " trying to send us more than one bitfield!\n";
+		global_stream_lock->unlock();
+		//sock->close();
+		// other cleanup code - destruct this peer object.
+	}
+	
+	bitfieldReceived = true;
+	
 	std::uint8_t mask = 0b10000000;
 	int numPieces = peerStatus.pieceAvailable.size();
 	for(int i=0; i < data.size(); i++) {
@@ -254,6 +263,9 @@ void PeerClient::decodeBitfield(std::vector<uint8_t> &data) {
 			}
 		}
 	}
+	
+	tStats.peerHandshakesComplete++;
+	callback->taskManager();
 }
 
 std::vector<std::uint8_t> PeerClient::encodeBitfield() {
@@ -282,19 +294,19 @@ std::vector<std::uint8_t> PeerClient::encodeBitfield() {
 	return bitfield;
 }
 
-void PeerClient::choke() {
+void PeerClient::recvChoke() {
 	status.choked = true;
 }
 	
-void PeerClient::unchoke() {
+void PeerClient::recvUnchoke() {
 	status.choked = false;
 }
 
-void PeerClient::interested() {
+void PeerClient::recvInterested() {
 	status.interested = true;
 }
 
-void PeerClient::notInterested() {
+void PeerClient::recvNotInterested() {
 	status.interested = false;
 }
 
@@ -330,7 +342,7 @@ void PeerClient::recvPiece(std::vector<uint8_t> &payload) {
 	// acknowledge successful receipt.
 }
 
-void PeerClient::cancel(std::vector<uint8_t> &payload) {
+void PeerClient::recvCancel(std::vector<uint8_t> &payload) {
 	std::uint8_t pieceIndexArray[4];
 	std::uint8_t blockOffset[4];
 	std::uint8_t blockLength[4];
@@ -350,12 +362,11 @@ void PeerClient::recvPort(std::vector<uint8_t> &payload) {
 	// Do nothing. We're not implementing DHT right now.
 }
 
-void PeerClient::keepAlive() {
+void PeerClient::recvKeepAlive() {
 }
 
 void PeerClient::updatePieceInfo(int index) {
 	global_piece_lock->lock();
-	pieces[index].have = true;
 	pieces[index].peers.push_back(peerId);
 	global_piece_lock->unlock();
 }

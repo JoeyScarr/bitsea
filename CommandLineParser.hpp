@@ -14,6 +14,7 @@
 
 namespace cli {
 	const int COMMAND_MAX = 256;
+	const int PEER_THRESHHOLD = 10;
 	
 	struct Settings {
 		std::string fileName;

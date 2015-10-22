@@ -15,6 +15,7 @@
 #include <boost/asio/write.hpp>
 #include "Tracker.hpp"
 #include "Stats.hpp"
+#include "BitSeaCallBack.hpp"
 
 class PeerClient {
 private:
@@ -41,6 +42,7 @@ private:
 	static const int PROCESS_SUCCESS = 0;
 	static const int PROCESS_DROP_PEER_INVALID_MESSAGE = 2;
 	
+	// Maintains network status about the client from our point of view.
 	struct Status {
 		bool choked;
 		bool interested;
@@ -48,14 +50,16 @@ private:
 		bool am_interested;
 		bool peer_choking;
 		bool peer_interested;
-		std::vector<std::uint8_t> bitfield;
 	} status;
 
+	// Maintains info about the pieces this client has as well as the
+	// handshake string.
 	struct PeerInfo {
 		std::string handshake;
 		std::vector<bool> pieceAvailable;
 	} peerStatus;
 
+	// Command buffer to store a complete command for processing.
 	struct Command {
 		std::uint8_t messageId;
 		std::uint32_t length;
@@ -67,7 +71,8 @@ private:
 	int readBufferSize;
 	std::string sendBuffer;
 	std::string handshake;
-
+	TorrentStats &tStats;
+	
 	boost::shared_ptr<boost::asio::io_service> io_service;
 	
 	std::string ip;
@@ -75,11 +80,14 @@ private:
 	std::string infoHash;
 	std::string peerId;
 	int peerIndex;
+	bool bitfieldReceived;
 	
 	bool processingCommand;
 	int commandLength;
 	
 	std::vector<Piece> pieces;
+	
+	BitSeaCallBack *callback;
 		
 	boost::mutex *global_stream_lock;
 	boost::mutex *global_piece_lock;
@@ -89,18 +97,18 @@ private:
 	void sendHandshake(boost::shared_ptr<boost::asio::ip::tcp::socket> sock);
 	bool readHandshake(boost::shared_ptr<boost::asio::ip::tcp::socket> sock);
 	bool verifyHandshake();
-	void keepAlive();
-	void choke();
-	void unchoke();
-	void interested();
-	void notInterested();
+	void recvKeepAlive();
+	void recvChoke();
+	void recvUnchoke();
+	void recvInterested();
+	void recvNotInterested();
 	void decodeBitfield(std::vector<uint8_t> &data);
 	std::vector<std::uint8_t> encodeBitfield();
 	
 	void readHandler(const boost::system::error_code& error, std::size_t bytes_transferred);
 	void processCommand();
 	int processMessage(std::uint8_t messageId, std::vector<uint8_t> &payload);
-	void cancel(std::vector<uint8_t> &payload);
+	void recvCancel(std::vector<uint8_t> &payload);
 	void recvPort(std::vector<uint8_t> &payload);
 	void recvHave(std::vector<uint8_t> &payload);
 	void recvRequest(std::vector<uint8_t> &payload);
@@ -109,7 +117,8 @@ private:
 	void sendBitfield(boost::shared_ptr<boost::asio::ip::tcp::socket> sock);
 	
 public:
-	PeerClient(boost::shared_ptr<boost::asio::io_service> io_service, Tracker::Peer peerAddress, TorrentStats &stats, std::string infoHash, std::string peerId, int peerIndex, std::vector<Piece> pieces, boost::mutex *global_stream_lock, boost::mutex *global_piece_lock) {
+	PeerClient(BitSeaCallBack *callback, boost::shared_ptr<boost::asio::io_service> io_service, Tracker::Peer peerAddress, TorrentStats &stats, std::string infoHash, std::string peerId, int peerIndex, std::vector<Piece> pieces, boost::mutex *global_stream_lock, boost::mutex *global_piece_lock)
+	: tStats(stats) {
 		this->io_service = io_service;
 		this->ip = peerAddress.ip;
 		this->port = std::to_string(peerAddress.port);
@@ -119,11 +128,13 @@ public:
 		this->peerIndex = peerIndex;
 		this->global_piece_lock	= global_piece_lock;
 		this->pieces = pieces;
+		this->callback = callback;
 		status.am_choking = 1;
 		status.am_interested = 0;
 		status.peer_choking = 1;
 		status.peer_interested = 0;
 		readBufferSize = 0;
+		bitfieldReceived = false;
 		processingCommand = false;
 		commandLength = 0;
 		commandBuffer.payload.reserve(COMMAND_BUFFER_SIZE);
