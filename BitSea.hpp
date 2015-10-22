@@ -1,6 +1,7 @@
 #ifndef BITSEA_H
 #define BITSEA_H
 
+#include <algorithm>
 #include <fstream>
 #include <boost/filesystem.hpp>
 #include <boost/algorithm/string.hpp>
@@ -24,6 +25,17 @@ private:
 	struct PeerAccess {
 		std::shared_ptr<PeerClient> peer;
 	};
+	
+	struct Job {
+		int piece;
+		int peer;	
+	};
+	
+	struct JobComparator {
+		bool operator()(const Job& lhs, const Job& rhs) const {
+			return (lhs.piece < rhs.piece) || (lhs.peer < rhs.peer);
+		}
+	};
 
 	boost::shared_ptr<boost::asio::io_service> io_service;
 	boost::shared_ptr<boost::asio::io_service::work> work;
@@ -31,7 +43,7 @@ private:
 	cli::Settings programSettings;
 	std::vector<Piece> pieces;
 	std::unordered_set<int> piecesNeeded;
-	std::unordered_set<int> piecesAvailable;
+	std::set<int> piecesAvailable;
 	
 	std::vector<std::pair<std::string, int>> fileList;
 	TorrentStats tStats;
@@ -39,6 +51,8 @@ private:
 	std::vector<PeerAccess> peerDb; // refactor later to use hash table
 	std::vector<Tracker::Peer> peerList;
 	std::unordered_map<std::string, int> peerResolver;
+	std::set<Job, JobComparator> jobs;
+	bool *allocatedPieces;
 	
 	boost::mutex global_stream_lock;
 	boost::mutex global_piece_lock;
@@ -54,18 +68,15 @@ private:
 	void talkToPeer(Tracker::Peer peerAddress, std::string peerId, int index);
 	void initPieceDatabase();
 	void updateAvailablePieces();
+	void processAvailablePieces();
+	void allocateWork();
+	bool isPieceAllocated(int pieceIndex);
+	bool allocatePiece(int piece);
 	
 public:
 	const int THREAD_MAX = 51;
 
-	BitSea(int argc, char **argv) : io_service(new boost::asio::io_service), work(new boost::asio::io_service::work(*io_service)) {		
-		tStats.downloaded = 0;
-		tStats.uploaded = 0;
-		tStats.left = 0;
-		
-		cli::parseCommandLine(argc, argv, programSettings);
-		torrentInfo = new TorrentFileParser(programSettings.fileName);
-	}
+	BitSea(int argc, char **argv);
 	
 	void run();
 	void dropPeer(std::string peerId);

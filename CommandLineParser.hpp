@@ -15,10 +15,21 @@
 namespace cli {
 	const int COMMAND_MAX = 256;
 	const int PEER_THRESHHOLD = 10;
+	const int MAX_DOWNLOADS = 15;
+	const int MAX_UPLOADS = 10;
 	
 	struct Settings {
 		std::string fileName;
-		std::uint16_t port;	
+		std::uint16_t port;
+		std::uint16_t peerThreshold;
+		std::uint16_t maxDownloads;
+		std::uint16_t maxUploads;
+		
+		Settings() {
+			peerThreshold = PEER_THRESHHOLD;
+			maxDownloads = MAX_DOWNLOADS;
+			maxUploads = MAX_UPLOADS;
+		}
 	};
 
 	void parseCommandLine(int argc, char *argv[], Settings &programSettings);

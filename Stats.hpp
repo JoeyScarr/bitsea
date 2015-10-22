@@ -8,6 +8,7 @@ struct TorrentStats {
 	unsigned int uploaded;
 	unsigned int left;
 	unsigned int numberOfPieces;
+	unsigned int pieceLength;
 	unsigned int numUploads;
 	unsigned int numDownloads;
 	unsigned int peerHandshakesComplete;

@@ -1,7 +1,40 @@
 #include "PeerClient.hpp"
 
+PeerClient::PeerClient(BitSeaCallBack *callback, boost::shared_ptr<boost::asio::io_service> io_service, 
+		Tracker::Peer peerAddress, TorrentStats &stats, std::string infoHash, std::string peerId, int peerIndex, 
+		std::vector<Piece> pieces, boost::mutex *global_stream_lock, boost::mutex *global_piece_lock)
+		: tStats(stats) {
+	this->io_service = io_service;
+	this->ip = peerAddress.ip;
+	this->port = std::to_string(peerAddress.port);
+	this->infoHash = infoHash;
+	this->peerId = peerId;
+	this->global_stream_lock = global_stream_lock;
+	this->peerIndex = peerIndex;
+	this->global_piece_lock	= global_piece_lock;
+	this->pieces = pieces;
+	this->callback = callback;
+	status.am_choking = 1;
+	status.am_interested = 0;
+	status.peer_choking = 1;
+	status.peer_interested = 0;
+	readBufferSize = 0;
+	bitfieldReceived = false;
+	processingCommand = false;
+	commandLength = 0;
+	commandBuffer.payload.reserve(COMMAND_BUFFER_SIZE);
+	processingBuffer.reserve(COMMAND_BUFFER_SIZE);
+	peerStatus.pieceAvailable.reserve(stats.numberOfPieces);
+	pieceBuffer.reserve(stats.pieceLength);
+	for(int i=0; i < stats.numberOfPieces; i++)
+		peerStatus.pieceAvailable.push_back(false);
+		
+	sock = boost::shared_ptr<boost::asio::ip::tcp::socket>(new boost::asio::ip::tcp::socket(*io_service));
+	jobInQueue = false;
+	busy = false;
+}
+
 void PeerClient::launch() {
-	boost::shared_ptr<boost::asio::ip::tcp::socket> sock(new boost::asio::ip::tcp::socket(*io_service));
 	try {
 		boost::asio::ip::tcp::resolver resolver(*io_service);
 		boost::asio::ip::tcp::resolver::query query(this->ip, this->port);
@@ -12,21 +45,25 @@ void PeerClient::launch() {
 		std::cout << "Connecting to: " << endpoint << std::endl;
 		global_stream_lock->unlock();
 
-		sock->async_connect(endpoint, boost::bind(&PeerClient::onConnect, this, _1, sock));
+		sock->async_connect(endpoint, boost::bind(&PeerClient::onConnect, this, _1));
 	}
 	catch(std::exception &ex) {
 		global_stream_lock->lock();
 		std::cout << "[" << boost::this_thread::get_id()
 			<< "] Exception: " << ex.what() << std::endl;
 		global_stream_lock->unlock();
-		boost::system::error_code ec;
-		sock->shutdown(boost::asio::ip::tcp::socket::shutdown_both, ec);
-		sock->close(ec);
-		callback->dropPeer(peerId);
+		shutdownSequence();
 	}
 }
 
-void PeerClient::onConnect(const boost::system::error_code &ec, boost::shared_ptr<boost::asio::ip::tcp::socket> sock) {
+void PeerClient::shutdownSequence() {
+	boost::system::error_code ec;
+	sock->shutdown(boost::asio::ip::tcp::socket::shutdown_both, ec);
+	sock->close(ec);
+	callback->dropPeer(peerId);
+}
+
+void PeerClient::onConnect(const boost::system::error_code &ec) {
 	if(ec) {
 		global_stream_lock->lock();
 		std::cout << "[" << boost::this_thread::get_id()
@@ -35,9 +72,11 @@ void PeerClient::onConnect(const boost::system::error_code &ec, boost::shared_pt
 	}
 	else {
 		initHandshakeMessage();
-		sendHandshake(sock);
-		if( (readHandshake(sock)) ) {
-			sock->async_read_some(boost::asio::buffer(networkBuffer, NETWORK_BUFFER_SIZE), boost::bind(&PeerClient::readHandler, this, boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred));
+		sendHandshake();
+		if( (readHandshake()) ) {
+			sock->async_read_some(boost::asio::buffer(networkBuffer, NETWORK_BUFFER_SIZE), 
+									boost::bind(&PeerClient::readHandler, this, boost::asio::placeholders::error, 
+									boost::asio::placeholders::bytes_transferred));
 		}
 	}
 }
@@ -57,7 +96,7 @@ void PeerClient::initHandshakeMessage() {
 	handshake += peerId;
 }
 
-void PeerClient::sendHandshake(boost::shared_ptr<boost::asio::ip::tcp::socket> sock) {
+void PeerClient::sendHandshake() {
 	try {
 		boost::system::error_code error;
 		boost::asio::write(*sock, boost::asio::buffer(handshake), error);
@@ -67,7 +106,7 @@ void PeerClient::sendHandshake(boost::shared_ptr<boost::asio::ip::tcp::socket> s
 	}
 }
 
-bool PeerClient::readHandshake(boost::shared_ptr<boost::asio::ip::tcp::socket> sock) {
+bool PeerClient::readHandshake() {
 	int handshakeSize = NETWORK_BUFFER_SIZE-1;
 	bool handshakeSizeSet = false;
 	while(readBufferSize < handshakeSize || !handshakeSizeSet) {
@@ -93,7 +132,7 @@ bool PeerClient::readHandshake(boost::shared_ptr<boost::asio::ip::tcp::socket> s
 		return false;
 	} 
 
-	sendBitfield(sock);
+	sendBitfield();
 	
 	for(int i=handshakeSize; i < readBufferSize; i++) {
 		processingBuffer.push_back(networkBuffer[i]);
@@ -102,7 +141,7 @@ bool PeerClient::readHandshake(boost::shared_ptr<boost::asio::ip::tcp::socket> s
 	return true;
 }
 
-void PeerClient::sendBitfield(boost::shared_ptr<boost::asio::ip::tcp::socket> sock) {
+void PeerClient::sendBitfield() {
 	std::vector<std::uint8_t> bitfield = encodeBitfield();
 	int size = bitfield.size();
 	std::uint8_t buf[size];
@@ -111,13 +150,7 @@ void PeerClient::sendBitfield(boost::shared_ptr<boost::asio::ip::tcp::socket> so
 		buf[i] = bitfield[i];
 	}
 	
-	try {
-		boost::system::error_code error;
-		boost::asio::write(*sock, boost::asio::buffer(buf, size), error);
-	}
-	catch (std::exception& e) {
-		std::cerr << e.what() << std::endl;
-	}
+	sendData(buf, size);
 }
 
 bool PeerClient::verifyHandshake() {
@@ -295,19 +328,24 @@ std::vector<std::uint8_t> PeerClient::encodeBitfield() {
 }
 
 void PeerClient::recvChoke() {
-	status.choked = true;
+	status.peer_choking = true;
 }
 	
 void PeerClient::recvUnchoke() {
-	status.choked = false;
+	status.peer_choking = false;
+	if(jobInQueue) {
+		jobInQueue = false;
+		requestPiece(jobPiece);
+	}
+	
 }
 
 void PeerClient::recvInterested() {
-	status.interested = true;
+	status.peer_interested = true;
 }
 
 void PeerClient::recvNotInterested() {
-	status.interested = false;
+	status.peer_interested = false;
 }
 
 void PeerClient::recvHave(std::vector<uint8_t> &payload) {
@@ -336,10 +374,30 @@ void PeerClient::recvRequest(std::vector<uint8_t> &payload) {
 }
 
 void PeerClient::recvPiece(std::vector<uint8_t> &payload) {
-	// check that this is something we requested.
-	// check SHA-1 on it.
-	// save piece to file.
-	// acknowledge successful receipt.
+	if(payload.size() < 8)
+		shutdownSequence();
+	
+	std::uint8_t index[4] = {payload[0], payload[1], payload[2], payload[3]};
+	*((std::uint32_t *) index) = ntohl(*((std::uint32_t *) index));
+	
+	std::uint8_t begin[4] = {payload[4], payload[5], payload[6], payload[7]};
+	*((std::uint32_t *) begin) = ntohl(*((std::uint32_t *) begin));
+	
+	if(jobPiece != *((std::uint32_t *) index) || *((std::uint32_t *) begin) != pieceExpectedBegin || payload.size()-8 != PIECE_BLOCK_SIZE ) {
+		shutdownSequence();
+	}
+	
+	for(int i=8; i<payload.size(); i++) {
+		pieceBuffer.push_back(payload[i]);
+	}
+	
+	if(payload.size() == PIECE_BLOCK_SIZE) {
+		// verify SHA1
+		// acknowledge sendHave if successful.
+	}
+	else {
+		// request next block.
+	}
 }
 
 void PeerClient::recvCancel(std::vector<uint8_t> &payload) {
@@ -370,3 +428,69 @@ void PeerClient::updatePieceInfo(int index) {
 	pieces[index].peers.push_back(peerId);
 	global_piece_lock->unlock();
 }
+
+bool PeerClient::isPeerChoking() {
+	return status.peer_choking;
+}
+
+void PeerClient::sendUnchoke() {
+	std::uint8_t message[5] = {0,0,0,1,1};
+	sendData(message, 5);
+}
+
+void PeerClient::sendInterested() {
+	std::uint8_t message[5] = {0,0,0,1,2};
+	sendData(message, 5);
+}
+
+void PeerClient::sendData(std::uint8_t *data, size_t size) {
+	try {
+		boost::system::error_code error;
+		boost::asio::write(*sock, boost::asio::buffer(data, size), error);
+	}
+	catch (std::exception& e) {
+		std::cerr << e.what() << std::endl;
+	}
+}
+
+void PeerClient::pleaseLetMeLeech(int piece) {
+	if(status.choked) {
+		status.choked = false;
+		sendUnchoke();
+		
+		status.interested = true;
+		sendInterested();
+		
+		jobInQueue = true;
+		jobPiece = piece;
+		// queue up job. act when peer unchokes.
+	}
+	else if(!isPeerChoking()) {
+		requestPiece(piece);
+	}
+}
+
+void PeerClient::requestPiece(int piece) {
+	busy = true;
+	std::uint8_t message[17] = {0,0,0,13,6,0,0,0,0,0,0,0,0,0,0,0,0};
+	
+	std::uint32_t index = htonl(piece);
+	*((std::uint32_t *)(message+5)) = index;
+	
+	std::uint32_t begin;
+	*((std::uint32_t *)(message+9)) = 0;
+	
+	std::uint32_t length;
+	*((std::uint32_t *)(message+13)) = PIECE_BLOCK_SIZE;
+	
+	pieceExpectedBegin = 0;
+	sendData(message, 17);
+}
+
+bool PeerClient::hasWork() {
+	if(jobInQueue || busy)
+		return true;
+	else
+		return false;
+}
+

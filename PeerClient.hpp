@@ -32,6 +32,7 @@ private:
 		static const uint8_t port = 9;
 	} mId;
 
+	static const int PIECE_BLOCK_SIZE = 32768; // 32KB
 	static const int COMMAND_BUFFER_SIZE = 131072;
 	static const int NETWORK_BUFFER_SIZE = 2048;
 	static const int CONNECTION_TIMEOUT_LIMIT = 120;
@@ -68,83 +69,73 @@ private:
 	
 	std::vector<std::uint8_t> processingBuffer;
 	std::uint8_t networkBuffer[NETWORK_BUFFER_SIZE];
+	std::vector<std::uint8_t> pieceBuffer;
 	int readBufferSize;
 	std::string sendBuffer;
 	std::string handshake;
-	TorrentStats &tStats;
-	
-	boost::shared_ptr<boost::asio::io_service> io_service;
-	
 	std::string ip;
 	std::string port;
 	std::string infoHash;
 	std::string peerId;
 	int peerIndex;
 	bool bitfieldReceived;
-	
 	bool processingCommand;
 	int commandLength;
-	
+	TorrentStats &tStats;	
 	std::vector<Piece> pieces;
+	bool jobInQueue;
+	std::uint32_t jobPiece;
+	int pieceExpectedBegin;
+	bool busy;
 	
 	BitSeaCallBack *callback;
 		
 	boost::mutex *global_stream_lock;
 	boost::mutex *global_piece_lock;
 	
-	void onConnect(const boost::system::error_code &ec, boost::shared_ptr<boost::asio::ip::tcp::socket> sock);
+	boost::shared_ptr<boost::asio::io_service> io_service;
+	boost::shared_ptr<boost::asio::ip::tcp::socket> sock;
+	
+	void onConnect(const boost::system::error_code &ec);
 	void initHandshakeMessage();
-	void sendHandshake(boost::shared_ptr<boost::asio::ip::tcp::socket> sock);
-	bool readHandshake(boost::shared_ptr<boost::asio::ip::tcp::socket> sock);
+	void sendHandshake();
+	bool readHandshake();
 	bool verifyHandshake();
 	void recvKeepAlive();
 	void recvChoke();
 	void recvUnchoke();
 	void recvInterested();
 	void recvNotInterested();
+	void recvCancel(std::vector<uint8_t> &payload);
+	void recvPort(std::vector<uint8_t> &payload);
+	void recvHave(std::vector<uint8_t> &payload);
+	void recvRequest(std::vector<uint8_t> &payload);
+	void recvPiece(std::vector<uint8_t> &payload);
 	void decodeBitfield(std::vector<uint8_t> &data);
 	std::vector<std::uint8_t> encodeBitfield();
 	
 	void readHandler(const boost::system::error_code& error, std::size_t bytes_transferred);
 	void processCommand();
 	int processMessage(std::uint8_t messageId, std::vector<uint8_t> &payload);
-	void recvCancel(std::vector<uint8_t> &payload);
-	void recvPort(std::vector<uint8_t> &payload);
-	void recvHave(std::vector<uint8_t> &payload);
-	void recvRequest(std::vector<uint8_t> &payload);
-	void recvPiece(std::vector<uint8_t> &payload);
+
 	void updatePieceInfo(int pieceIndex);
-	void sendBitfield(boost::shared_ptr<boost::asio::ip::tcp::socket> sock);
+	void sendBitfield();
+	void sendUnchoke();
+	void sendInterested();
+	void sendData(std::uint8_t *data, size_t size);
+	void requestPiece(int piece);
+	void shutdownSequence();
 	
 public:
-	PeerClient(BitSeaCallBack *callback, boost::shared_ptr<boost::asio::io_service> io_service, Tracker::Peer peerAddress, TorrentStats &stats, std::string infoHash, std::string peerId, int peerIndex, std::vector<Piece> pieces, boost::mutex *global_stream_lock, boost::mutex *global_piece_lock)
-	: tStats(stats) {
-		this->io_service = io_service;
-		this->ip = peerAddress.ip;
-		this->port = std::to_string(peerAddress.port);
-		this->infoHash = infoHash;
-		this->peerId = peerId;
-		this->global_stream_lock = global_stream_lock;
-		this->peerIndex = peerIndex;
-		this->global_piece_lock	= global_piece_lock;
-		this->pieces = pieces;
-		this->callback = callback;
-		status.am_choking = 1;
-		status.am_interested = 0;
-		status.peer_choking = 1;
-		status.peer_interested = 0;
-		readBufferSize = 0;
-		bitfieldReceived = false;
-		processingCommand = false;
-		commandLength = 0;
-		commandBuffer.payload.reserve(COMMAND_BUFFER_SIZE);
-		processingBuffer.reserve(COMMAND_BUFFER_SIZE);
-		peerStatus.pieceAvailable.reserve(stats.numberOfPieces);
-		for(int i=0; i < stats.numberOfPieces; i++)
-			peerStatus.pieceAvailable.push_back(false);
-	}
+	PeerClient(BitSeaCallBack *callback, boost::shared_ptr<boost::asio::io_service> io_service, 
+		Tracker::Peer peerAddress, TorrentStats &stats, std::string infoHash, std::string peerId, int peerIndex, 
+		std::vector<Piece> pieces, boost::mutex *global_stream_lock, boost::mutex *global_piece_lock
+	);
 
 	void launch();
+	bool isPeerChoking();
+	void pleaseLetMeLeech(int piece);
+	bool hasWork();
 
 };
 
