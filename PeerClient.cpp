@@ -392,6 +392,8 @@ void PeerClient::recvPiece(std::vector<uint8_t> &payload) {
 	}
 	
 	if(payload.size() == PIECE_BLOCK_SIZE) {
+		// Double check that the last piece (if it's partial) hashes the whole block including the padding at the end
+		// or whether it just hashes to end of file.
 		if(!verifyPieceShaHash()) {
 			global_stream_lock->lock();
 			std::cerr << "Sha sum failed.\n";
@@ -399,12 +401,14 @@ void PeerClient::recvPiece(std::vector<uint8_t> &payload) {
 			shutdownSequence();
 		}
 		else {
-			// save data
-			// acknowledge sendHave if successful.
+			callback->writePiece(pieceBuffer, jobPiece);
+			callback->completedJob(jobPiece, peerId);
+			sendHave(jobPiece);
+			busy=false;
 		}
 	}
 	else {
-		// request next block.
+		requestPiece(jobPiece, pieceBuffer.size(), PIECE_BLOCK_SIZE);
 	}
 }
 
@@ -484,27 +488,30 @@ void PeerClient::pleaseLetMeLeech(int piece) {
 		
 		jobInQueue = true;
 		jobPiece = piece;
-		// queue up job. act when peer unchokes.
 	}
 	else if(!isPeerChoking()) {
 		requestPiece(piece);
 	}
 }
 
-void PeerClient::requestPiece(int piece) {
+void PeerClient::requestPiece(std::uint32_t piece) {
 	busy = true;
+	requestPiece(piece, 0, PIECE_BLOCK_SIZE);
+}
+
+void PeerClient::requestPiece(std::uint32_t piece, std::uint32_t offset, std::uint32_t blockSize) {
 	std::uint8_t message[17] = {0,0,0,13,6,0,0,0,0,0,0,0,0,0,0,0,0};
 	
 	std::uint32_t index = htonl(piece);
 	*((std::uint32_t *)(message+5)) = index;
 	
-	std::uint32_t begin;
-	*((std::uint32_t *)(message+9)) = 0;
+	std::uint32_t begin = htonl(offset);
+	*((std::uint32_t *)(message+9)) = begin;
 	
-	std::uint32_t length;
-	*((std::uint32_t *)(message+13)) = PIECE_BLOCK_SIZE;
+	std::uint32_t length = htonl(blockSize);
+	*((std::uint32_t *)(message+13)) = length;
 	
-	pieceExpectedBegin = 0;
+	pieceExpectedBegin = offset;
 	sendData(message, 17);
 }
 
@@ -515,3 +522,9 @@ bool PeerClient::hasWork() {
 		return false;
 }
 
+void PeerClient::sendHave(std::uint32_t piece) {
+	std::uint8_t message[9] = {0,0,0,5,4,0,0,0,0};
+	*((std::uint32_t*) message+5) = piece;
+	
+	sendData(message, 9);
+}

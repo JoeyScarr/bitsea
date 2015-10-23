@@ -73,6 +73,12 @@ private:
 	bool isPieceAllocated(int pieceIndex);
 	bool allocatePiece(int piece);
 	
+	template<typename C, typename T> void removeItem(C container, T element) {
+		auto it = container.find(element);
+		if(it != container.end())
+			container.erase(it);
+	}
+	
 public:
 	const int THREAD_MAX = 51;
 
@@ -81,6 +87,8 @@ public:
 	void run();
 	void dropPeer(std::string peerId);
 	void taskManager();
+	void writePiece(std::vector<std::uint8_t> &buffer, int pieceIndex);
+	void completedJob(std::uint32_t piece, std::string peerId);
 };
 
 

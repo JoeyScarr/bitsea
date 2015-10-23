@@ -272,3 +272,22 @@ void BitSea::updateAvailablePieces() {
 	}
 }
 
+void BitSea::writePiece(std::vector<std::uint8_t> &buffer, int pieceIndex) {
+}
+
+void BitSea::completedJob(std::uint32_t piece, std::string peerId) {
+	Job job;
+	job.piece = piece;
+
+	auto search = peerResolver.find(peerId);
+	if(search != peerResolver.end())
+		job.peer = search->second;
+	
+	removeItem<std::set<Job, JobComparator>, Job>(jobs, job);
+	removeItem<std::set<int>, int>(piecesAvailable, piece);
+	removeItem<std::unordered_set<int>, int>(piecesNeeded, piece);
+	
+	pieces[piece].have = true;
+}
+
+

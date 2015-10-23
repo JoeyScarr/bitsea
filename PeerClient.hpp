@@ -124,9 +124,11 @@ private:
 	void sendUnchoke();
 	void sendInterested();
 	void sendData(std::uint8_t *data, size_t size);
-	void requestPiece(int piece);
+	void requestPiece(std::uint32_t piece);
+	void requestPiece(std::uint32_t piece, std::uint32_t offset, std::uint32_t blockSize);
 	void shutdownSequence();
 	bool verifyPieceShaHash();
+	void sendHave(std::uint32_t piece);
 	
 public:
 	PeerClient(BitSeaCallBack *callback, boost::shared_ptr<boost::asio::io_service> io_service, 
